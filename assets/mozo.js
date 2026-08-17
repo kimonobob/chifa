@@ -551,6 +551,7 @@
     pintarCabecera();
   }
   $('#enviar').onclick = enviar;
+  $('#enviar-pad').onclick = enviar;
 
   $('#vaciar').onclick = () => {
     if (!st.mesa || !borrador().length) return;
@@ -638,7 +639,15 @@
       t + (i.tamano === 'F' && i.precioF ? i.precioF : i.precio) * i.cant, 0);
     $('#total-borrador').textContent = UI.soles(totalBorrador);
     $('#total-mesa').textContent = UI.soles(cuenta ? cuenta.total : 0);
-    $('#enviar').disabled = !st.mesa || !items.length;
+
+    // Los dos botones de enviar (el del panel y el de abajo del teclado)
+    const platos = items.reduce((t, i) => t + i.cant, 0);
+    const sinNada = !st.mesa || !items.length;
+    $('#enviar').disabled = sinNada;
+    $('#enviar-pad').disabled = sinNada;
+    $('#enviar-pad').textContent = sinNada
+      ? 'Enviar a cocina'
+      : `Enviar a cocina · ${platos} plato${platos === 1 ? '' : 's'} · ${UI.soles(totalBorrador)}`;
   }
 
   // ── Atajos de teclado ────────────────────────────────────────────────────

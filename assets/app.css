@@ -200,7 +200,11 @@ body[data-app="portada"] { display: flex; flex-direction: column; }
 
 /* ═══ MOZO ════════════════════════════════════════════════════════════════ */
 body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
-  display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+  display: flex; flex-direction: column; overflow: hidden;
+  height: 100vh;
+  /* En tablet y celular, 100vh se mete debajo de la barra del navegador y
+     recorta el fondo de la pantalla — justo donde va el botón de enviar. */
+  height: 100dvh;
 }
 .mozo { flex: 1; display: grid; grid-template-columns: 1fr 380px; min-height: 0; }
 .mozo-izq { display: flex; flex-direction: column; min-height: 0; overflow-y: auto; }
@@ -414,8 +418,13 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
 .keypad button:active { background: var(--tinta); color: var(--laton-cla); }
 .keypad button.aux { font-size: 1.05rem; letter-spacing: .06em; text-transform: uppercase; }
 .keypad button.borrar { background: var(--panel-2); }
-.keypad .agregar { grid-column: span 3; height: 66px; background: var(--lacado); color: #fff; border-color: transparent; font-size: 1.3rem; letter-spacing: .08em; text-transform: uppercase; }
+.keypad .agregar { grid-column: span 3; height: 66px; background: var(--tinta); color: var(--laton-cla); border-color: transparent; font-size: 1.3rem; letter-spacing: .08em; text-transform: uppercase; }
 .keypad .agregar:disabled { background: var(--panel-2); color: var(--txt-dim); border-color: var(--linea); }
+
+/* Enviar a cocina, repetido bajo el teclado: en tablet el panel del pedido
+   queda fuera de la vista y el mozo no alcanzaba el botón. */
+.enviar-pad { margin-top: 10px; height: 66px; }
+.enviar-pad:disabled { background: var(--panel-2); color: var(--txt-dim); border: 1px solid var(--linea); }
 
 .cant-fila { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
 .cant-fila .eyebrow { flex: 1; }
@@ -589,7 +598,7 @@ body[data-app="mozo"] .comanda-items .nota, body[data-app="caja"] .comanda-items
   position: fixed; inset: 0; background: rgba(10,7,5,.88); z-index: 50;
   display: flex; align-items: center; justify-content: center; padding: 24px;
 }
-.foco-caja { width: min(760px, 100%); max-height: 90vh; overflow-y: auto; --zoom: 1.7; }
+.foco-caja { width: min(760px, 100%); max-height: 90vh; max-height: 90dvh; overflow-y: auto; --zoom: 1.7; }
 
 /* ═══ CAJA ════════════════════════════════════════════════════════════════ */
 .caja { flex: 1; display: grid; grid-template-columns: 300px 1fr 340px; min-height: 0; }
@@ -730,7 +739,7 @@ dialog > footer { padding: 12px 18px; border-top: 1px solid var(--linea); displa
 /* Tablet vertical — el teclado y las notas siguen lado a lado */
 @media (max-width: 900px) {
   .mozo { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
-  .mozo-der { border-left: 0; border-top: 2px solid var(--lacado); max-height: 42vh; }
+  .mozo-der { border-left: 0; border-top: 2px solid var(--lacado); max-height: 42vh; max-height: 42dvh; }
   .salon { padding: 12px 14px 14px; }
   .salon-titulo { font-size: 1.7rem; }
   .rueda-item { width: 104px; }
