@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cocina · Chifaa</title>
+<link rel="icon" href="assets/favicon.svg">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-app="cocina">
+
+<header class="top">
+  <div class="marca">Chifa<b>a</b> <span>Cocina</span></div>
+  <div class="crece"></div>
+  <div class="reloj" id="reloj"></div>
+  <a class="salir" href="index.html">Inicio</a>
+</header>
+
+<div class="cocina">
+
+  <div class="cocina-barra">
+    <span class="eyebrow">Impresión</span>
+    <div class="modo-toggle" id="modo">
+      <button type="button" data-m="manual">Manual</button>
+      <button type="button" data-m="auto">Automático</button>
+    </div>
+
+    <span class="tecla-vista">
+      Tecla
+      <kbd id="tecla">P</kbd>
+      <button class="btn chico fantasma" id="cambiar-tecla">Cambiar</button>
+    </span>
+
+    <span class="sep"></span>
+
+    <span class="eyebrow">Formato</span>
+    <div class="modo-toggle" id="formato">
+      <button type="button" data-f="comanda">Una comanda</button>
+      <button type="button" data-f="plato">Un papel por plato</button>
+    </div>
+
+    <span class="sep"></span>
+
+    <button class="btn chico fantasma" id="imprimir-ya">Imprimir pendiente</button>
+    <button class="btn chico fantasma" id="agotados-btn">Agotados</button>
+    <button class="btn chico fantasma" id="sonido">Sonido: sí</button>
+    <button class="btn chico fantasma" id="letra-menos" aria-label="Letra más chica">A−</button>
+    <button class="btn chico fantasma" id="letra-mas" aria-label="Letra más grande">A+</button>
+    <button class="btn chico fantasma" id="pantalla">Pantalla completa</button>
+  </div>
+
+  <div class="columnas" id="columnas">
+    <section class="col" data-col="nuevo">
+      <div class="col-cab"><h2>Entran</h2><span class="conteo" id="c-nuevo">0</span></div>
+      <div class="col-cuerpo" id="col-nuevo"></div>
+    </section>
+    <section class="col" data-col="preparando">
+      <div class="col-cab"><h2>En el wok</h2><span class="conteo" id="c-preparando">0</span></div>
+      <div class="col-cuerpo" id="col-preparando"></div>
+    </section>
+    <section class="col" data-col="listo">
+      <div class="col-cab"><h2>Salen</h2><span class="conteo" id="c-listo">0</span></div>
+      <div class="col-cuerpo" id="col-listo"></div>
+    </section>
+  </div>
+</div>
+
+<dialog id="dlg-agotados">
+  <header><h2>Marcar agotados</h2></header>
+  <div class="cuerpo-dlg">
+    <p style="margin:0 0 12px;color:var(--txt-dim);font-size:.9rem">
+      Lo que marques acá le aparece bloqueado al mozo al instante.
+    </p>
+    <input id="buscar-agotado" placeholder="Buscar plato o código" style="width:100%;margin-bottom:12px">
+    <div id="lista-agotados" style="display:grid;gap:4px"></div>
+  </div>
+  <footer><button class="btn primario" id="cerrar-agotados">Listo</button></footer>
+</dialog>
+
+<script src="assets/data.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/print.js"></script>
+<script src="assets/cocina.js"></script>
+</body>
+</html>

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chifaa · Salón, cocina y caja</title>
+<link rel="icon" href="assets/favicon.svg">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-app="portada">
+
+<header class="top">
+  <div class="marca">Chifa<b>a</b> <span>Sistema de salón</span></div>
+  <div class="crece"></div>
+  <div class="reloj" id="reloj"></div>
+</header>
+
+<main class="portada">
+  <p class="eyebrow" style="margin:0 0 14px">La carta se canta por número</p>
+  <h1>Un <em>60</em> y dos <em>81</em>.<br>Listo.</h1>
+  <p class="bajada">
+    Tres pantallas conectadas: el mozo dispara el número, la cocina lo ve al instante,
+    la caja cobra lo que salió. Abre cada una en su propia pestaña o en su propio equipo.
+  </p>
+
+  <div class="opciones">
+    <a class="opcion" href="mozo.html">
+      <div class="num">01</div>
+      <h2>Mozo</h2>
+      <p>Escribe o desliza el código, elige mesa y manda a cocina.</p>
+      <p class="dinero" id="est-mozo" style="margin-top:10px;color:var(--laton-cla)">—</p>
+    </a>
+    <a class="opcion" href="cocina.html">
+      <div class="num">02</div>
+      <h2>Cocina</h2>
+      <p>Pantalla de comandas con cronómetro e impresión manual o automática.</p>
+      <p class="dinero" id="est-cocina" style="margin-top:10px;color:var(--laton-cla)">—</p>
+    </a>
+    <a class="opcion" href="caja.html">
+      <div class="num">03</div>
+      <h2>Caja</h2>
+      <p>Cobra la mesa, agrega gaseosas y cierra el día.</p>
+      <p class="dinero" id="est-caja" style="margin-top:10px;color:var(--laton-cla)">—</p>
+    </a>
+  </div>
+
+  <footer>
+    Las tres pantallas comparten datos por este navegador. Para usarlas en equipos distintos
+    hace falta un servidor — está anotado en <code>README.md</code>.
+  </footer>
+</main>
+
+<script src="assets/data.js"></script>
+<script src="assets/store.js"></script>
+<script>
+  function pintar() {
+    const cuentas = Store.cuentas();
+    const cocina = Store.pedidosCocina();
+    const r = Store.resumenDia();
+    document.getElementById('est-mozo').textContent =
+      `${cuentas.length} mesa${cuentas.length === 1 ? '' : 's'} abierta${cuentas.length === 1 ? '' : 's'}`;
+    document.getElementById('est-cocina').textContent =
+      cocina.length ? `${cocina.length} pedido${cocina.length === 1 ? '' : 's'} en curso` : 'Cocina al día';
+    document.getElementById('est-caja').textContent =
+      `${UI.soles(r.total)} · ${r.ventas} cuenta${r.ventas === 1 ? '' : 's'}`;
+  }
+  function reloj() {
+    document.getElementById('reloj').textContent = UI.horaSeg(Date.now());
+  }
+  Store.on(pintar);
+  pintar(); reloj();
+  setInterval(reloj, 1000);
+  setInterval(pintar, 15000);
+</script>
+</body>
+</html>

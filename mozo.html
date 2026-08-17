@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Mozo · Chifaa</title>
+<link rel="icon" href="assets/favicon.svg">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-app="mozo">
+
+<header class="top">
+  <div class="marca">Chifa<b>a</b> <span>Mozo</span></div>
+  <div class="crece"></div>
+  <select id="sel-mozo" style="background:#221A15;border-color:#4A3A2B;color:var(--arroz)">
+    <option>Mozo 1</option><option>Mozo 2</option><option>Mozo 3</option>
+    <option>Mozo 4</option><option>Mozo 5</option>
+  </select>
+  <div class="reloj" id="reloj"></div>
+  <a class="salir" href="index.html">Inicio</a>
+</header>
+
+<main class="mozo">
+  <section class="mozo-izq">
+
+    <div class="mesas-tira" id="mesas" aria-label="Elegir mesa"></div>
+
+    <!-- Lector: el código se resuelve en nombre mientras se escribe -->
+    <div class="lector">
+      <div class="slots" id="slots" role="img" aria-live="polite" aria-label="Código marcado"></div>
+      <div class="resuelto">
+        <p class="nombre libre" id="nombre">Marca un código</p>
+        <div class="meta">
+          <span class="precio dinero" id="precio"></span>
+          <span class="cat" id="cat">Del 1 al 128</span>
+          <div class="tamanos" id="tamanos">
+            <button type="button" data-t="R" class="on">Regular</button>
+            <button type="button" data-t="F">Familiar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Rueda deslizable de códigos -->
+    <div class="rueda-caja">
+      <div class="ayuda">
+        <span class="eyebrow">Desliza o arrastra para buscar</span>
+        <input id="buscar" type="search" placeholder="…o escribe el nombre" style="max-width:240px">
+      </div>
+      <div class="rueda" id="rueda" tabindex="0" aria-label="Rueda de códigos"></div>
+      <div class="rueda-guia" aria-hidden="true"></div>
+    </div>
+
+    <div class="taller">
+      <div class="keypad" id="keypad"></div>
+
+      <div>
+        <div class="cant-fila">
+          <span class="eyebrow" style="width:76px">Cantidad</span>
+          <button type="button" id="menos" aria-label="Menos uno">−</button>
+          <span class="valor" id="cant">1</span>
+          <button type="button" id="mas" aria-label="Más uno">+</button>
+        </div>
+
+        <p class="eyebrow" style="margin:0 0 7px">Notas para cocina</p>
+        <div class="notas-rapidas" id="notas"></div>
+        <input id="nota-libre" placeholder="Otra indicación…" style="width:100%;margin-bottom:14px">
+
+        <p class="eyebrow" style="margin:0 0 6px">Atajos de teclado</p>
+        <p style="font-size:.82rem;color:var(--txt-dim);margin:0;line-height:1.7">
+          <kbd>0</kbd>–<kbd>9</kbd> marca el código &middot;
+          <kbd>←</kbd><kbd>→</kbd> código ±1 &middot;
+          <kbd>↑</kbd><kbd>↓</kbd> cantidad &middot;
+          <kbd>F</kbd> familiar &middot;
+          <kbd>Enter</kbd> agrega &middot;
+          <kbd>Ctrl</kbd>+<kbd>Enter</kbd> envía a cocina &middot;
+          <kbd>Esc</kbd> limpia
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <aside class="mozo-der">
+    <div class="pedido-cab">
+      <h2 id="titulo-mesa">Mesa —</h2>
+      <button class="btn chico fantasma" id="vaciar">Vaciar</button>
+    </div>
+
+    <div class="lineas" id="lineas"></div>
+
+    <div class="pedido-pie">
+      <div class="total-fila">
+        <span class="etq">Por enviar</span>
+        <span class="val dinero" id="total-borrador">S/ 0.00</span>
+      </div>
+      <div class="total-fila" style="font-size:.86rem">
+        <span class="etq" style="letter-spacing:.1em">Ya en la mesa</span>
+        <span class="dinero" id="total-mesa">S/ 0.00</span>
+      </div>
+      <button class="btn lacado grande bloque" id="enviar" disabled>Enviar a cocina</button>
+    </div>
+  </aside>
+</main>
+
+<script src="assets/data.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/print.js"></script>
+<script src="assets/mozo.js"></script>
+</body>
+</html>

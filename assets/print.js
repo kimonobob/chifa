@@ -1,0 +1,209 @@
+/* Impresión en ticketera térmica de 80 mm.
+   Arma el HTML del ticket, lo mete en #zona-impresion y llama a window.print().
+   El CSS de @media print (app.css) oculta todo lo demás y fija el ancho.
+   Para que salga sin diálogo, abrir Chrome con --kiosk-printing (ver README). */
+
+const Impresion = (() => {
+
+  function zona() {
+    let z = document.getElementById('zona-impresion');
+    if (!z) {
+      z = document.createElement('div');
+      z.id = 'zona-impresion';
+      document.body.appendChild(z);
+    }
+    return z;
+  }
+
+  function imprimir(html) {
+    const z = zona();
+    z.innerHTML = html;
+    // Un frame para que el navegador aplique estilos antes de abrir el diálogo.
+    requestAnimationFrame(() => {
+      window.print();
+      setTimeout(() => { z.innerHTML = ''; }, 800);
+    });
+  }
+
+  const cab = () => {
+    const c = Store.config();
+    return `<div class="t-centro">
+      <div class="t-titulo">${UI.esc(c.negocio)}</div>
+      ${c.direccion ? `<div class="t-sub">${UI.esc(c.direccion)}</div>` : ''}
+      ${c.ruc ? `<div class="t-sub">RUC ${UI.esc(c.ruc)}</div>` : ''}
+    </div>`;
+  };
+
+  const linea = () => '<hr>';
+
+  /* ── Comanda de cocina: solo lo que se cocina, códigos bien grandes ─────── */
+  function comanda(p, { copia = false } = {}) {
+    const items = p.items.filter(i => !i.bar);
+    const barra = p.items.filter(i => i.bar);
+    if (!items.length && !barra.length) return '';
+
+    const filas = arr => arr.map(i => `
+      <tr>
+        <td class="t-cod">${String(i.codigo).padStart(2, '0')}</td>
+        <td class="t-cant">${i.cant}x</td>
+        <td class="t-nom">${UI.esc(i.nombre)}${i.tamano === 'F' ? ' [FAM]' : ''}
+          ${i.notas ? `<div class="t-nota">${UI.esc(i.notas)}</div>` : ''}
+        </td>
+      </tr>`).join('');
+
+    return `<div class="ticket">
+      <div class="t-centro">
+        <div class="t-titulo">COMANDA${copia ? ' (COPIA)' : ''}</div>
+        <div class="t-mesa">MESA ${UI.esc(p.mesa)}</div>
+        <div class="t-sub">Pedido N° ${p.num} &middot; ${UI.horaSeg(p.creado)}</div>
+        <div class="t-sub">Mozo: ${UI.esc(p.mozo)}</div>
+      </div>
+      ${linea()}
+      ${items.length ? `<table>${filas(items)}</table>` : ''}
+      ${barra.length ? `${linea()}<div class="t-sub"><b>BARRA</b></div><table>${filas(barra)}</table>` : ''}
+      ${linea()}
+      <div class="t-pie">${items.reduce((t, i) => t + i.cant, 0)} platos &middot; impreso ${UI.horaSeg(Date.now())}</div>
+    </div>`;
+  }
+
+  /* Una sola comanda por platillo (algunas cocinas trabajan así: un papel
+     por plato, se va pegando en la barra de despacho). */
+  function comandaPorPlato(p) {
+    return p.items.filter(i => !i.bar).map(i => `<div class="ticket">
+      <div class="t-centro">
+        <div class="t-mesa">MESA ${UI.esc(p.mesa)}</div>
+        <div class="t-sub">Pedido N° ${p.num} &middot; ${UI.horaSeg(p.creado)}</div>
+      </div>
+      ${linea()}
+      <div class="t-centro">
+        <div style="font-size:44px;font-weight:700;line-height:1">${String(i.codigo).padStart(2, '0')}</div>
+        <div class="t-nom" style="font-size:15px">${i.cant} &times; ${UI.esc(i.nombre)}${i.tamano === 'F' ? ' [FAM]' : ''}</div>
+        ${i.notas ? `<div class="t-nota" style="font-size:13px">${UI.esc(i.notas)}</div>` : ''}
+      </div>
+      ${linea()}
+      <div class="t-pie">Mozo: ${UI.esc(p.mozo)}</div>
+    </div>`).join('');
+  }
+
+  /* ── Precuenta: lo que el cliente pide antes de pagar ───────────────────── */
+  function precuenta(mesa) {
+    const lineas = Store.lineasDe(mesa);
+    if (!lineas.length) return '';
+    const total = lineas.reduce((t, l) => t + l.pu * l.cant, 0);
+    return `<div class="ticket">
+      ${cab()}
+      ${linea()}
+      <div class="t-centro"><div class="t-titulo">PRECUENTA</div>
+      <div class="t-mesa">MESA ${UI.esc(mesa)}</div>
+      <div class="t-sub">${UI.fecha(Date.now())} &middot; ${UI.hora(Date.now())}</div></div>
+      ${linea()}
+      <table>${lineas.map(l => `
+        <tr>
+          <td class="t-cant">${l.cant}x</td>
+          <td class="t-nom">${String(l.codigo).padStart(2, '0')} ${UI.esc(l.nombre)}${l.tamano === 'F' ? ' [FAM]' : ''}</td>
+          <td class="t-n">${(l.pu * l.cant).toFixed(2)}</td>
+        </tr>`).join('')}
+      </table>
+      ${linea()}
+      <table><tr>
+        <td class="t-tot">TOTAL</td>
+        <td class="t-n t-tot">${UI.soles(total)}</td>
+      </tr></table>
+      ${linea()}
+      <div class="t-pie">Este documento no es comprobante de pago.<br>¡Gracias por su visita!</div>
+    </div>`;
+  }
+
+  /* ── Boleta: el comprobante después de cobrar ───────────────────────────── */
+  function boleta(v) {
+    return `<div class="ticket">
+      ${cab()}
+      ${linea()}
+      <div class="t-centro"><div class="t-titulo">BOLETA DE VENTA</div>
+      <div class="t-sub">N° ${String(v.num).padStart(5, '0')} &middot; Mesa ${UI.esc(v.mesa)}</div>
+      <div class="t-sub">${UI.fecha(v.cerrado)} ${UI.hora(v.cerrado)} &middot; ${UI.esc(v.cajero)}</div></div>
+      ${linea()}
+      <table>${v.lineas.map(l => `
+        <tr>
+          <td class="t-cant">${l.cant}x</td>
+          <td class="t-nom">${String(l.codigo).padStart(2, '0')} ${UI.esc(l.nombre)}${l.tamano === 'F' ? ' [FAM]' : ''}
+            <div class="t-nota" style="font-weight:400">c/u ${l.pu.toFixed(2)}</div></td>
+          <td class="t-n">${(l.pu * l.cant).toFixed(2)}</td>
+        </tr>`).join('')}
+      </table>
+      ${linea()}
+      <table>
+        <tr><td>Subtotal</td><td class="t-n">${v.subtotal.toFixed(2)}</td></tr>
+        ${v.descuento ? `<tr><td>Descuento</td><td class="t-n">-${v.descuento.toFixed(2)}</td></tr>` : ''}
+        <tr><td class="t-tot">TOTAL</td><td class="t-n t-tot">${UI.soles(v.total)}</td></tr>
+        <tr><td>Pago</td><td class="t-n">${UI.esc(v.metodo)}</td></tr>
+        ${v.metodo === 'Efectivo' ? `
+        <tr><td>Recibido</td><td class="t-n">${v.recibido.toFixed(2)}</td></tr>
+        <tr><td class="t-tot">VUELTO</td><td class="t-n t-tot">${v.vuelto.toFixed(2)}</td></tr>` : ''}
+      </table>
+      ${v.nota ? `${linea()}<div class="t-sub">${UI.esc(v.nota)}</div>` : ''}
+      ${linea()}
+      <div class="t-pie">¡Gracias por su visita!<br>Vuelva pronto</div>
+    </div>`;
+  }
+
+  /* ── Cierre de caja del día ─────────────────────────────────────────────── */
+  function cierre(dia) {
+    const r = Store.resumenDia(dia);
+    return `<div class="ticket">
+      ${cab()}
+      ${linea()}
+      <div class="t-centro"><div class="t-titulo">CIERRE DE CAJA</div>
+      <div class="t-sub">${dia || Store.hoy()} &middot; ${UI.hora(Date.now())}</div>
+      <div class="t-sub">${UI.esc(Store.config().caja)}</div></div>
+      ${linea()}
+      <table>
+        <tr><td>Cuentas cobradas</td><td class="t-n">${r.ventas}</td></tr>
+        <tr><td>Ticket promedio</td><td class="t-n">${r.promedio.toFixed(2)}</td></tr>
+        ${r.descuentos ? `<tr><td>Descuentos</td><td class="t-n">-${r.descuentos.toFixed(2)}</td></tr>` : ''}
+        <tr><td class="t-tot">TOTAL</td><td class="t-n t-tot">${UI.soles(r.total)}</td></tr>
+      </table>
+      ${linea()}
+      <div class="t-sub"><b>POR MEDIO DE PAGO</b></div>
+      <table>${Object.entries(r.metodos).map(([m, t]) =>
+        `<tr><td>${UI.esc(m)}</td><td class="t-n">${t.toFixed(2)}</td></tr>`).join('') || '<tr><td>Sin ventas</td><td></td></tr>'}
+      </table>
+      ${linea()}
+      <div class="t-sub"><b>MÁS VENDIDOS</b></div>
+      <table>${r.top.slice(0, 12).map(p =>
+        `<tr><td class="t-cod" style="font-size:12px">${String(p.codigo).padStart(2, '0')}</td>
+             <td class="t-nom" style="font-size:11px">${UI.esc(p.nombre)}</td>
+             <td class="t-n">${p.cant}</td></tr>`).join('') || '<tr><td>—</td><td></td><td></td></tr>'}
+      </table>
+      ${linea()}
+      <div class="t-pie">Firma: ______________________</div>
+    </div>`;
+  }
+
+  return {
+    imprimir,
+    comanda, comandaPorPlato, precuenta, boleta, cierre,
+    imprimirComanda(p, opts) {
+      const html = comanda(p, opts);
+      if (!html) return false;
+      imprimir(html);
+      Store.marcarImpreso(p.id);
+      return true;
+    },
+    imprimirPorPlato(p) {
+      const html = comandaPorPlato(p);
+      if (!html) return false;
+      imprimir(html);
+      Store.marcarImpreso(p.id);
+      return true;
+    },
+    imprimirPrecuenta(mesa) {
+      const html = precuenta(mesa);
+      if (!html) return false;
+      imprimir(html);
+      return true;
+    },
+    imprimirBoleta(v) { imprimir(boleta(v)); },
+    imprimirCierre(dia) { imprimir(cierre(dia)); }
+  };
+})();

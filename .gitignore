@@ -1,0 +1,18 @@
+# Windows / OneDrive
+Thumbs.db
+desktop.ini
+ehthumbs.db
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+
+# Editores
+.vscode/
+.idea/
+*.swp
+
+# Node (por si más adelante se le agrega el servidor)
+node_modules/
+npm-debug.log*
+package-lock.json

@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caja · Chifaa</title>
+<link rel="icon" href="assets/favicon.svg">
+<link rel="stylesheet" href="assets/app.css">
+</head>
+<body data-app="caja">
+
+<header class="top">
+  <div class="marca">Chifa<b>a</b> <span>Caja</span></div>
+  <div class="crece"></div>
+  <div class="reloj" id="reloj"></div>
+  <a class="salir" href="index.html">Inicio</a>
+</header>
+
+<main class="caja">
+
+  <!-- Columna 1: cuentas abiertas -->
+  <section class="caja-col">
+    <header>
+      <h2>Cuentas</h2>
+      <select id="abrir-mesa" title="Abrir cualquier mesa">
+        <option value="">Abrir mesa…</option>
+      </select>
+    </header>
+    <div class="cuerpo" id="lista-cuentas"></div>
+    <div class="kpis" style="border-top:1px solid var(--linea)">
+      <div class="kpi"><div class="k">Mesas abiertas</div><div class="v" id="k-abiertas">0</div></div>
+      <div class="kpi"><div class="k">Por cobrar</div><div class="v" id="k-porcobrar">S/ 0</div></div>
+    </div>
+  </section>
+
+  <!-- Columna 2: detalle / ventas / ajustes -->
+  <section class="caja-col">
+    <div class="tabs" id="tabs">
+      <button type="button" data-tab="cuenta" class="on">Cuenta</button>
+      <button type="button" data-tab="ventas">Ventas del día</button>
+      <button type="button" data-tab="ajustes">Ajustes</button>
+    </div>
+
+    <div class="cuerpo" id="panel-cuenta">
+      <div id="detalle"></div>
+    </div>
+
+    <div class="cuerpo" id="panel-ventas" style="display:none"></div>
+    <div class="cuerpo" id="panel-ajustes" style="display:none"></div>
+
+    <div class="agregar-rapido" id="rapido">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:9px">
+        <span class="eyebrow">Agregar a la cuenta</span>
+        <input id="codigo-rapido" placeholder="Código" style="width:92px" inputmode="numeric">
+        <input id="cant-rapida" type="number" value="1" min="1" max="99" style="width:70px" title="Cantidad">
+        <button class="btn chico" id="add-codigo">Agregar</button>
+      </div>
+      <div class="grid-bebidas" id="grid-bebidas"></div>
+    </div>
+  </section>
+
+  <!-- Columna 3: cobro -->
+  <section class="caja-col cobro-col">
+    <header><h2>Cobrar</h2><span class="eyebrow" id="cobro-mesa">—</span></header>
+    <div class="cuerpo">
+      <div class="cobro">
+        <div class="grid2">
+          <div class="campo">
+            <label for="desc-monto">Descuento S/</label>
+            <input id="desc-monto" type="number" min="0" step="0.5" value="0">
+          </div>
+          <div class="campo">
+            <label for="desc-pct">Descuento %</label>
+            <input id="desc-pct" type="number" min="0" max="100" step="1" value="0">
+          </div>
+        </div>
+
+        <div>
+          <p class="eyebrow" style="margin:0 0 7px">Medio de pago</p>
+          <div class="metodos" id="metodos">
+            <button type="button" class="metodo-btn on" data-m="Efectivo">Efectivo</button>
+            <button type="button" class="metodo-btn" data-m="Yape">Yape</button>
+            <button type="button" class="metodo-btn" data-m="Plin">Plin</button>
+            <button type="button" class="metodo-btn" data-m="Tarjeta">Tarjeta</button>
+            <button type="button" class="metodo-btn" data-m="Transferencia">Transferencia</button>
+            <button type="button" class="metodo-btn" data-m="Cortesía">Cortesía</button>
+          </div>
+        </div>
+
+        <div id="zona-efectivo">
+          <div class="campo" style="margin-bottom:7px">
+            <label for="recibido">Recibe</label>
+            <input id="recibido" type="number" min="0" step="0.1" value="0" style="font-size:1.3rem">
+          </div>
+          <div class="billetes" id="billetes"></div>
+        </div>
+
+        <div class="resumen-cobro" id="resumen-cobro"></div>
+
+        <button class="btn jade grande bloque" id="cobrar" disabled>Cobrar e imprimir</button>
+        <div style="display:flex;gap:7px">
+          <button class="btn fantasma" id="precuenta" style="flex:1" disabled>Precuenta</button>
+          <button class="btn fantasma" id="cobrar-sin" style="flex:1" disabled>Cobrar sin ticket</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="assets/data.js"></script>
+<script src="assets/store.js"></script>
+<script src="assets/print.js"></script>
+<script src="assets/caja.js"></script>
+</body>
+</html>
