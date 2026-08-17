@@ -11,10 +11,13 @@
     const cuentas = Store.cuentas();
     $('#lista-cuentas').innerHTML = cuentas.map(c => {
       const espera = c.pedidos.some(p => p.estado === 'nuevo' || p.estado === 'preparando');
+      const rotulo = c.mesas.length > 1
+        ? c.mesas.join('+')
+        : (isNaN(Number(c.mesa)) ? c.mesa.slice(0, 3) : c.mesa);
       return `<button type="button" class="cuenta-item ${c.mesa === st.mesa ? 'activa' : ''} ${espera ? 'espera' : ''}" data-mesa="${UI.esc(c.mesa)}">
-        <span class="mesa-n">${isNaN(Number(c.mesa)) ? UI.esc(c.mesa.slice(0, 3)) : UI.esc(c.mesa)}</span>
+        <span class="mesa-n">${UI.esc(rotulo)}</span>
         <span>
-          <b>${UI.esc(etqMesa(c.mesa))}</b>
+          <b>${UI.esc(c.nombre)}</b>
           <small>${UI.hora(c.desde)} · ${c.pedidos.length} ronda${c.pedidos.length === 1 ? '' : 's'}${espera ? ' · en cocina' : ''}</small>
         </span>
         <span class="tot dinero">${c.total.toFixed(2)}</span>
@@ -61,8 +64,9 @@
 
     let filas = '';
     rondas.forEach(p => {
+      const deOtraMesa = c && c.mesas.length > 1 ? ` · mesa ${UI.esc(p.mesa)}` : '';
       filas += `<tr><td colspan="5" style="background:var(--panel-2);padding:6px 14px">
-        <span class="eyebrow">${p.origen === 'caja' ? 'Venta directa' : `Pedido N° ${p.num}`} · ${UI.hora(p.creado)}</span>
+        <span class="eyebrow">${p.origen === 'caja' ? 'Venta directa' : `Pedido N° ${p.num}`}${deOtraMesa} · ${UI.hora(p.creado)}</span>
         <span class="pill ${p.estado}" style="margin-left:8px">${p.estado}</span>
       </td></tr>`;
       p.items.forEach(i => {
@@ -82,7 +86,7 @@
 
     $('#detalle').innerHTML = `
       <div class="det-cab">
-        <h1>${UI.esc(etqMesa(st.mesa))}</h1>
+        <h1>${UI.esc(Store.nombreCuenta(st.mesa))}</h1>
         <div class="sub">${c
           ? `Abierta ${UI.hora(c.desde)} · ${rondas.length} ronda${rondas.length === 1 ? '' : 's'} · ${UI.soles(c.total)}`
           : 'Cuenta vacía — agrega algo abajo'}</div>
@@ -164,7 +168,7 @@
     const rec = Number($('#recibido').value) || 0;
     const dif = +(rec - tot).toFixed(2);
 
-    $('#cobro-mesa').textContent = st.mesa ? etqMesa(st.mesa) : '—';
+    $('#cobro-mesa').textContent = st.mesa ? Store.nombreCuenta(st.mesa) : '—';
     $('#zona-efectivo').style.display = efectivo ? '' : 'none';
     $('#metodos').querySelectorAll('.metodo-btn').forEach(b => b.classList.toggle('on', b.dataset.m === st.metodo));
 
@@ -226,7 +230,7 @@
     if (!v) return UI.toast('No hay nada que cobrar', 'error');
 
     if (imprimir) Impresion.imprimirBoleta(v);
-    UI.toast(`${etqMesa(v.mesa)} cobrada · ${UI.soles(v.total)}${v.vuelto ? ` · vuelto ${UI.soles(v.vuelto)}` : ''}`, 'ok');
+    UI.toast(`${v.nombreMesa} cobrada · ${UI.soles(v.total)}${v.vuelto ? ` · vuelto ${UI.soles(v.vuelto)}` : ''}`, 'ok');
     st.mesa = null;
     $('#desc-monto').value = 0;
     $('#desc-pct').value = 0;
@@ -263,7 +267,7 @@
         <thead><tr><th>Hora</th><th>Mesa</th><th>Pago</th><th class="n">Total</th><th></th></tr></thead>
         <tbody>${vs.map(v => `<tr>
           <td class="dinero">${UI.hora(v.cerrado)}</td>
-          <td><b>${UI.esc(etqMesa(v.mesa))}</b><small style="display:block;color:var(--txt-dim)">N° ${String(v.num).padStart(5, '0')} · ${v.lineas.reduce((t, l) => t + l.cant, 0)} ítems</small></td>
+          <td><b>${UI.esc(v.nombreMesa || etqMesa(v.mesa))}</b><small style="display:block;color:var(--txt-dim)">N° ${String(v.num).padStart(5, '0')} · ${v.lineas.reduce((t, l) => t + l.cant, 0)} ítems</small></td>
           <td>${UI.esc(v.metodo)}</td>
           <td class="n"><b>${v.total.toFixed(2)}</b></td>
           <td class="n"><button class="btn chico fantasma" data-boleta="${v.id}">Copia</button></td>

@@ -17,13 +17,14 @@ const Store = (() => {
     version: 1,
     pedidos: [],
     ventas: [],
+    grupos: [],          // mesas unidas: [{ id, mesas:['3','4'], principal:'3' }]
     cartaEdits: {},
     seq: { pedido: 0, venta: 0 },
     dia: hoy(),
     config: {
       mozo: 'Mozo 1',
       caja: 'Caja 1',
-      mesas: 16,
+      mesas: 15,
       negocio: 'Chifa Chifaa',
       direccion: 'Av. Principal 123',
       ruc: '',
@@ -105,6 +106,82 @@ const Store = (() => {
     const lista = [];
     for (let i = 1; i <= n; i++) lista.push(String(i));
     return lista.concat(['Llevar', 'Delivery', 'Barra']);
+  }
+
+  /* Las numeradas van primero y en orden; después las de nombre. */
+  function ordenMesa(a, b) {
+    const na = Number(a), nb = Number(b);
+    if (isNaN(na) && isNaN(nb)) return String(a).localeCompare(String(b));
+    if (isNaN(na)) return 1;
+    if (isNaN(nb)) return -1;
+    return na - nb;
+  }
+
+  // ── Mesas unidas ─────────────────────────────────────────────────────────
+  /* Cuando el mozo junta dos mesas, los pedidos siguen guardándose con su
+     mesa original: lo que se une es la CUENTA. Así, al separarlas, cada una
+     se queda con lo suyo. */
+  function grupos() { return leer().grupos || []; }
+
+  function grupoDe(mesa) {
+    return grupos().find(g => g.mesas.includes(String(mesa))) || null;
+  }
+
+  /* Todas las mesas que comparten cuenta con esta (incluida ella misma). */
+  function mesasDe(mesa) {
+    const g = grupoDe(mesa);
+    return g ? g.mesas.slice() : [String(mesa)];
+  }
+
+  /* Bajo qué mesa se agrupa la cuenta: la principal del grupo, o ella misma. */
+  function claveCuenta(mesa) {
+    const g = grupoDe(mesa);
+    return g ? g.principal : String(mesa);
+  }
+
+  function unirMesas(a, b) {
+    a = String(a); b = String(b);
+    if (a === b) return null;
+    return mutar(s => {
+      if (!s.grupos) s.grupos = [];
+      const ga = s.grupos.find(g => g.mesas.includes(a));
+      const gb = s.grupos.find(g => g.mesas.includes(b));
+      const juntas = new Set([
+        ...(ga ? ga.mesas : [a]),
+        ...(gb ? gb.mesas : [b])
+      ]);
+      s.grupos = s.grupos.filter(g => g !== ga && g !== gb);
+      const lista = [...juntas].sort(ordenMesa);
+      const g = {
+        id: `G${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`,
+        mesas: lista,
+        principal: lista[0],
+        desde: Date.now()
+      };
+      s.grupos.push(g);
+      return g;
+    });
+  }
+
+  /* Separa el grupo completo al que pertenece esa mesa. */
+  function separarMesas(mesa) {
+    mutar(s => {
+      s.grupos = (s.grupos || []).filter(g => !g.mesas.includes(String(mesa)));
+    });
+  }
+
+  const etiqueta = m => (isNaN(Number(m)) ? m : `Mesa ${m}`);
+
+  /* "Mesa 3" · "Mesas 3 + 4" · "Llevar" */
+  function nombreCuenta(mesa) {
+    const ms = mesasDe(mesa);
+    if (ms.length === 1) return etiqueta(ms[0]);
+    return 'Mesas ' + ms.join(' + ');
+  }
+
+  /* Versión corta para el ticket y las tarjetas de cocina: "3+4" */
+  function mesaCorta(mesa) {
+    return mesasDe(mesa).join('+');
   }
 
   // ── Pedidos ──────────────────────────────────────────────────────────────
@@ -238,27 +315,30 @@ const Store = (() => {
     return i.tamano === 'F' && i.precioF ? i.precioF : i.precio;
   }
 
+  /* Una cuenta por mesa; las mesas unidas comparten una sola. */
   function cuentas() {
     const abiertos = pedidosActivos().filter(p => !p.pagado);
-    const porMesa = new Map();
+    const porClave = new Map();
     abiertos.forEach(p => {
-      if (!porMesa.has(p.mesa)) porMesa.set(p.mesa, { mesa: p.mesa, pedidos: [], total: 0, desde: p.creado });
-      const m = porMesa.get(p.mesa);
+      const clave = claveCuenta(p.mesa);
+      if (!porClave.has(clave)) {
+        porClave.set(clave, {
+          mesa: clave,
+          mesas: mesasDe(clave),
+          nombre: nombreCuenta(clave),
+          pedidos: [], total: 0, desde: p.creado
+        });
+      }
+      const m = porClave.get(clave);
       m.pedidos.push(p);
       m.desde = Math.min(m.desde, p.creado);
       p.items.forEach(i => (m.total += precioItem(i) * i.cant));
     });
-    return [...porMesa.values()].sort((a, b) => {
-      const na = Number(a.mesa), nb = Number(b.mesa);
-      if (isNaN(na) && isNaN(nb)) return a.mesa.localeCompare(b.mesa);
-      if (isNaN(na)) return 1;
-      if (isNaN(nb)) return -1;
-      return na - nb;
-    });
+    return [...porClave.values()].sort((a, b) => ordenMesa(a.mesa, b.mesa));
   }
 
   function cuentaDe(mesa) {
-    return cuentas().find(c => c.mesa === String(mesa)) || null;
+    return cuentas().find(c => c.mesa === claveCuenta(mesa)) || null;
   }
 
   /* Junta los items repetidos de todas las rondas de una mesa en una sola
@@ -279,8 +359,11 @@ const Store = (() => {
   function cobrar(mesa, { descuento = 0, metodo = 'Efectivo', recibido = 0, nota = '' }) {
     const lineas = lineasDe(mesa);
     if (!lineas.length) return null;
+    const delGrupo = mesasDe(mesa);          // cobra todas las mesas unidas
+    const nombre = nombreCuenta(mesa);
+    const corta = mesaCorta(mesa);
     return mutar(s => {
-      const pedidos = s.pedidos.filter(p => p.mesa === String(mesa) && !p.pagado && p.estado !== 'anulado');
+      const pedidos = s.pedidos.filter(p => delGrupo.includes(p.mesa) && !p.pagado && p.estado !== 'anulado');
       const subtotal = lineas.reduce((t, l) => t + l.pu * l.cant, 0);
       const total = Math.max(0, +(subtotal - descuento).toFixed(2));
       if (s.dia !== hoy()) { s.dia = hoy(); s.seq.venta = 0; }
@@ -288,7 +371,10 @@ const Store = (() => {
       const venta = {
         id: `V${Date.now().toString(36)}`,
         num: s.seq.venta,
-        mesa: String(mesa),
+        mesa: String(claveCuenta(mesa)),
+        mesas: delGrupo,
+        nombreMesa: nombre,
+        mesaCorta: corta,
         cerrado: Date.now(),
         dia: hoy(),
         cajero: s.config.caja,
@@ -303,6 +389,8 @@ const Store = (() => {
         p.ventaId = venta.id;
         if (p.estado !== 'servido') p.estado = 'servido';
       });
+      // Cobrada la cuenta, las mesas vuelven a quedar sueltas.
+      s.grupos = (s.grupos || []).filter(g => !g.mesas.some(m => delGrupo.includes(m)));
       return venta;
     });
   }
@@ -350,7 +438,8 @@ const Store = (() => {
   return {
     on: cb => { oyentes.add(cb); return () => oyentes.delete(cb); },
     estado: leer, hoy, avisar,
-    carta, plato, editarPlato, mesas,
+    carta, plato, editarPlato, mesas, ordenMesa,
+    grupos, grupoDe, mesasDe, claveCuenta, unirMesas, separarMesas, nombreCuenta, mesaCorta,
     pedidoNuevo, agregarItem, estadoPedido, marcarItem, anularPedido, quitarItem, marcarImpreso,
     pedidosActivos, pedidosCocina,
     cuentas, cuentaDe, lineasDe, precioItem, cobrar, ventasDia, resumenDia,

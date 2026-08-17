@@ -49,6 +49,7 @@ body[data-app="cocina"], body[data-app="portada"] {
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
+[hidden] { display: none !important; }
 body {
   margin: 0;
   background: var(--bg);
@@ -107,6 +108,7 @@ button { cursor: pointer; }
   padding: 6px 10px; border: 1px solid #4A3A2B; border-radius: var(--r);
 }
 .top a.salir:hover { color: var(--arroz); border-color: var(--laton); }
+.top select { background: #221A15; border-color: #4A3A2B; color: var(--arroz); }
 
 /* ── Botones ───────────────────────────────────────────────────────────────── */
 .btn {
@@ -207,26 +209,120 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
   background: var(--panel); border-left: 1px solid var(--linea);
 }
 
-/* Selector de mesa */
-.mesas-tira {
-  display: flex; gap: 6px; padding: 10px 14px; overflow-x: auto;
-  border-bottom: 1px solid var(--linea); background: var(--panel-2);
-  scrollbar-width: thin;
+/* ── Croquis del salón ────────────────────────────────────────────────────
+   El número va al centro de la mesa, como en el plano que dibuja el dueño.
+   Arrastrar de una mesa a otra las une: la línea las conecta en el plano.  */
+.salon {
+  flex: 1; display: flex; flex-direction: column; gap: 12px;
+  padding: 14px 18px 18px; min-height: 0; overflow-y: auto;
 }
-.mesa-btn {
-  flex: 0 0 auto; min-width: 52px; padding: 8px 10px;
-  background: var(--panel); border: 1px solid var(--linea); border-radius: var(--r);
-  font-family: var(--display); font-stretch: condensed; font-size: 1.1rem;
-  display: flex; flex-direction: column; align-items: center; line-height: 1.05;
+.salon-cab { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.salon-titulo {
+  margin: 0; font-family: var(--display); font-stretch: condensed;
+  text-transform: uppercase; font-size: 2.1rem; line-height: 1; letter-spacing: .04em;
 }
-.mesa-btn small { font-family: var(--mono); font-size: .6rem; color: var(--txt-dim); }
-.mesa-btn.ocupada { border-color: var(--laton); background: #FBF3DF; }
-.mesa-btn.ocupada small { color: var(--laton); }
-.mesa-btn.activa {
-  background: var(--tinta); color: var(--arroz); border-color: var(--tinta);
-  box-shadow: 0 0 0 3px rgba(192,32,43,.28);
+.salon-ayuda { margin: 5px 0 0; color: var(--txt-dim); font-size: .92rem; }
+.salon-ayuda b { color: var(--lacado); font-weight: 600; }
+.leyenda { display: flex; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--txt-dim); }
+.leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+.pt { width: 11px; height: 11px; border-radius: 2px; border: 1px solid var(--linea); }
+.pt.libre   { background: var(--panel); }
+.pt.ocupada { background: var(--laton); border-color: var(--laton); }
+.pt.cocina  { background: var(--lacado); border-color: var(--lacado); }
+.pt.lista   { background: var(--jade); border-color: var(--jade); }
+
+.plano-caja { flex: 1; min-height: 0; display: flex; }
+.plano {
+  flex: 1; position: relative; display: grid; gap: 10px; padding: 12px;
+  grid-template-columns: 1fr 40px;
+  grid-template-rows: auto 1fr auto;
+  grid-template-areas: "cocina barra" "mesas barra" "puerta barra";
+  background: var(--panel-2); border: 1px solid var(--linea); border-radius: var(--r);
 }
-.mesa-btn.activa small { color: var(--laton-cla); }
+.rotulo {
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--display); font-stretch: condensed; text-transform: uppercase;
+  letter-spacing: .2em; font-size: .7rem; color: var(--txt-dim);
+  background: var(--bg); border: 1px dashed var(--linea); border-radius: 2px;
+}
+.rotulo.cocina { grid-area: cocina; padding: 6px; }
+.rotulo.puerta { grid-area: puerta; padding: 6px; }
+.rotulo.barra  { grid-area: barra; writing-mode: vertical-rl; letter-spacing: .3em; }
+
+.mesas-plano {
+  grid-area: mesas; display: grid; gap: 10px;
+  grid-template-columns: 1fr 1fr 28px 1fr 1fr;   /* la 3.ª columna es el pasillo */
+  grid-auto-rows: minmax(86px, 1fr);
+}
+.mesa-plano {
+  position: relative; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 1px; padding: 8px 6px;
+  background: var(--panel); border: 2px solid var(--linea); border-radius: 5px;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+  transition: transform .1s ease, border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+.mp-num {
+  font-family: var(--display); font-stretch: condensed; font-weight: 600;
+  font-size: 2.5rem; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.mp-info { font-family: var(--mono); font-size: .8rem; font-weight: 600; }
+.mp-tiempo { font-family: var(--mono); font-size: .68rem; color: var(--txt-dim); }
+.mp-punto {
+  position: absolute; top: 6px; right: 6px; width: 10px; height: 10px; border-radius: 50%;
+}
+.mesa-plano.ocupada { border-color: var(--laton); background: #FBF4E2; }
+.mesa-plano.ocupada .mp-info { color: #8A6410; }
+.mesa-plano.cocina  { border-color: var(--lacado); }
+.mesa-plano.cocina .mp-punto  { background: var(--lacado); animation: latir 1.6s infinite; }
+.mesa-plano.lista   { border-color: var(--jade); background: #EAF6F0; }
+.mesa-plano.lista .mp-punto { background: var(--jade); }
+.mesa-plano.unida   { box-shadow: inset 0 0 0 3px rgba(192,32,43,.14); }
+.mesa-plano:active  { transform: scale(.97); }
+.mesa-plano.origen  { border-color: var(--lacado); box-shadow: 0 0 0 3px rgba(192,32,43,.3); }
+.mesa-plano.destino { border-color: var(--jade); box-shadow: 0 0 0 4px rgba(31,125,92,.35); transform: scale(1.05); }
+
+.uniones { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.uniones line { stroke: var(--lacado); stroke-width: 3; stroke-linecap: round; }
+.uniones line.fantasma { stroke-dasharray: 6 6; opacity: .8; }
+
+.chips-grupo { position: absolute; inset: 0; pointer-events: none; }
+.chip-grupo {
+  position: absolute; transform: translate(-50%, -50%); pointer-events: auto;
+  display: inline-flex; align-items: center; gap: 7px; padding: 4px 5px 4px 11px;
+  background: var(--tinta); color: var(--arroz); border-radius: 100px; white-space: nowrap;
+  font-family: var(--display); font-stretch: condensed; font-size: .8rem; letter-spacing: .08em;
+  box-shadow: 0 5px 16px -6px rgba(0,0,0,.55);
+}
+.chip-grupo button {
+  width: 24px; height: 24px; border: 0; border-radius: 50%;
+  background: var(--lacado); color: #fff; font-size: .85rem; line-height: 1;
+}
+
+/* Llevar · Delivery · Barra */
+.zonas { display: flex; gap: 10px; flex-wrap: wrap; }
+.zona-btn {
+  flex: 1 1 150px; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 13px 15px; background: var(--panel); border: 1px solid var(--linea); border-radius: var(--r);
+  font-family: var(--display); font-stretch: condensed; text-transform: uppercase;
+  letter-spacing: .08em; font-size: 1.06rem;
+}
+.zona-btn.ocupada { border-color: var(--laton); background: #FBF4E2; }
+.zona-btn .zt {
+  font-family: var(--mono); font-size: .84rem; color: var(--txt-dim);
+  text-transform: none; letter-spacing: 0;
+}
+
+/* Barra de la vista de pedido */
+.pedido-barra {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 16px; background: var(--panel-2); border-bottom: 1px solid var(--linea);
+}
+.pedido-barra h1 {
+  margin: 0; font-family: var(--display); font-stretch: condensed; text-transform: uppercase;
+  font-size: 1.62rem; line-height: 1; letter-spacing: .03em;
+}
+.pedido-barra .crece { flex: 1; }
+.resumen-mesa { font-family: var(--mono); font-size: .86rem; color: var(--txt-dim); }
 
 /* El lector: la firma del módulo de mozo */
 .lector {
@@ -298,11 +394,20 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
   border-left: 1px dashed rgba(192,32,43,.4); pointer-events: none;
 }
 
-/* Teclado y notas */
-.taller { display: grid; grid-template-columns: 300px 1fr; gap: 16px; padding: 16px 20px 24px; align-items: start; }
+/* Teclado a la izquierda · Notas de cocina a la derecha, mitad y mitad */
+.taller {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 18px;
+  padding: 14px 18px; align-items: stretch; border-top: 1px solid var(--linea);
+}
+.taller-izq { display: flex; flex-direction: column; }
+.taller-der { display: flex; flex-direction: column; gap: 9px; min-width: 0; }
+.taller-der .eyebrow { margin: 0; }
+.nota-acciones { display: flex; gap: 8px; margin-top: auto; padding-top: 4px; }
+.nota-acciones .btn { flex: 1; padding: 13px 12px; }
+
 .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
 .keypad button {
-  height: 62px; background: var(--panel); border: 1px solid var(--linea); border-radius: var(--r);
+  height: 64px; background: var(--panel); border: 1px solid var(--linea); border-radius: var(--r);
   font-family: var(--display); font-stretch: condensed; font-size: 1.9rem; line-height: 1;
   font-variant-numeric: tabular-nums;
 }
@@ -312,22 +417,31 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
 .keypad .agregar { grid-column: span 3; height: 66px; background: var(--lacado); color: #fff; border-color: transparent; font-size: 1.3rem; letter-spacing: .08em; text-transform: uppercase; }
 .keypad .agregar:disabled { background: var(--panel-2); color: var(--txt-dim); border-color: var(--linea); }
 
-.cant-fila { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+.cant-fila { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.cant-fila .eyebrow { flex: 1; }
 .cant-fila .valor {
-  font-family: var(--display); font-stretch: condensed; font-size: 2rem; min-width: 2.2ch;
-  text-align: center; font-variant-numeric: tabular-nums;
+  font-family: var(--display); font-stretch: condensed; font-size: 2.1rem; min-width: 2.4ch;
+  text-align: center; font-variant-numeric: tabular-nums; line-height: 1;
 }
 .cant-fila button {
-  width: 44px; height: 44px; border: 1px solid var(--linea); background: var(--panel);
-  border-radius: var(--r); font-size: 1.4rem; font-family: var(--display);
+  width: 52px; height: 52px; border: 1px solid var(--linea); background: var(--panel);
+  border-radius: var(--r); font-size: 1.6rem; font-family: var(--display); line-height: 1;
 }
 
-.notas-rapidas { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.notas-rapidas { display: flex; flex-wrap: wrap; gap: 7px; align-content: flex-start; }
 .nota-chip {
-  padding: 6px 11px; background: var(--panel); border: 1px solid var(--linea);
-  border-radius: 100px; font-size: .84rem;
+  padding: 9px 14px; background: var(--panel); border: 1px solid var(--linea);
+  border-radius: 100px; font-size: .88rem;
 }
 .nota-chip.on { background: var(--tinta); color: var(--arroz); border-color: var(--tinta); }
+
+/* Atajos de teclado, al final de la columna */
+.atajos {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
+  padding: 11px 18px 14px; margin-top: auto;
+  border-top: 1px solid var(--linea); font-size: .8rem; color: var(--txt-dim);
+}
+.atajos span { display: inline-flex; align-items: center; gap: 4px; }
 
 /* Pedido en curso */
 .pedido-cab {
@@ -357,6 +471,8 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
 .total-fila { display: flex; align-items: baseline; justify-content: space-between; }
 .total-fila .etq { font-family: var(--display); font-stretch: condensed; letter-spacing: .14em; text-transform: uppercase; color: var(--txt-dim); }
 .total-fila .val { font-family: var(--mono); font-size: 1.7rem; font-weight: 600; }
+.total-fila.chica { font-size: .86rem; }
+.total-fila.chica .etq { letter-spacing: .1em; }
 .ronda-previa { border-bottom: 1px solid var(--linea); }
 .ronda-previa .rot {
   padding: 7px 14px; font-size: .72rem; letter-spacing: .16em; text-transform: uppercase;
@@ -592,22 +708,58 @@ dialog > footer { padding: 12px 18px; border-top: 1px solid var(--linea); displa
 .toast.fuera { opacity: 0; transition: opacity .3s ease; }
 @keyframes subir { from { opacity: 0; transform: translateY(12px); } }
 
-/* ── Responsive ───────────────────────────────────────────────────────────── */
-@media (max-width: 1100px) {
+/* ── Responsive ────────────────────────────────────────────────────────────
+   Objetivo principal: tablet. Horizontal (1024×768) es la postura normal de
+   un mozo; vertical (768×1024) también tiene que funcionar.               */
+
+/* Tablet horizontal */
+@media (max-width: 1180px) {
+  .mozo { grid-template-columns: 1fr 320px; }
+  .slot { width: 52px; height: 76px; font-size: 3.5rem; }
+  .lector { gap: 14px; padding: 14px 16px; }
+  .keypad button { height: 58px; font-size: 1.7rem; }
+  .cant-fila button { width: 48px; height: 48px; }
+  .mesas-plano { grid-template-columns: 1fr 1fr 20px 1fr 1fr; gap: 8px; grid-auto-rows: minmax(78px, 1fr); }
+  .mp-num { font-size: 2.1rem; }
   .caja { grid-template-columns: 220px 1fr; }
   .caja-col.cobro-col { grid-column: span 2; border-left: 0; border-top: 1px solid var(--linea); }
   .columnas { grid-template-columns: 1fr 1fr; }
   .col[data-col="listo"] { grid-column: span 2; }
 }
+
+/* Tablet vertical — el teclado y las notas siguen lado a lado */
 @media (max-width: 900px) {
-  .mozo { grid-template-columns: 1fr; }
-  .mozo-der { border-left: 0; border-top: 1px solid var(--linea); max-height: 46vh; }
-  .taller { grid-template-columns: 1fr; }
-  .slot { width: 50px; height: 72px; font-size: 3.4rem; }
+  .mozo { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+  .mozo-der { border-left: 0; border-top: 2px solid var(--lacado); max-height: 42vh; }
+  .salon { padding: 12px 14px 14px; }
+  .salon-titulo { font-size: 1.7rem; }
+  .rueda-item { width: 104px; }
   .columnas { grid-template-columns: 1fr; }
   .col[data-col="listo"] { grid-column: auto; }
   .caja { grid-template-columns: 1fr; }
   .caja-col { border-left: 0 !important; border-top: 1px solid var(--linea); }
+}
+
+/* Teléfono: recién acá se apilan el teclado y las notas */
+@media (max-width: 620px) {
+  .taller { grid-template-columns: 1fr; gap: 14px; }
+  .mesas-plano { grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
+  .plano { grid-template-columns: 1fr 30px; padding: 8px; }
+  .slot { width: 44px; height: 64px; font-size: 3rem; }
+  .lector { grid-template-columns: 1fr; }
+  .pedido-barra h1 { font-size: 1.3rem; }
+  .atajos { display: none; }              /* sin teclado físico no aportan */
+}
+
+/* Pantalla táctil: todo más grande y sin efectos de hover */
+@media (pointer: coarse) {
+  .keypad button { height: 66px; }
+  .nota-chip { padding: 11px 16px; font-size: .92rem; }
+  .btn { padding: 12px 18px; }
+  .btn.chico { padding: 8px 13px; }
+  .linea .quitar { width: 38px; height: 38px; }
+  .rueda-item { width: 124px; padding: 10px; }
+  .mesa-plano:hover, .zona-btn:hover, .btn:hover { filter: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }

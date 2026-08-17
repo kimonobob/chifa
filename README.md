@@ -30,8 +30,50 @@ Abre cada pantalla en su propia pestaña o ventana. Se sincronizan al instante.
 
 ## 1 · Mozo
 
+Pensado para tablet. Tiene dos pantallas: el **croquis del salón** y, al tocar
+una mesa, la de **pedido**.
+
+### Croquis del salón
+
+Lo primero que se ve, antes de elegir ningún plato: el plano del local con las
+15 mesas, cada una con **su número al centro**, más Cocina, Barra y Entrada de
+referencia. Las de Llevar, Delivery y Barra van en una fila aparte.
+
+Cada mesa muestra de un vistazo cómo está:
+
+| Color | Qué significa |
+|---|---|
+| Blanca | Libre |
+| Borde dorado | Ocupada — muestra su total y desde qué hora |
+| Borde rojo + punto | Tiene platos en cocina |
+| Borde verde | Tiene platos listos para servir |
+
+Al tocar una mesa se abre su pedido **con todo lo que ya se le sirvió**: cada
+ronda con su hora, su estado y su importe.
+
+### Juntar mesas
+
+**Arrastra el dedo de una mesa a otra y se juntan.** Aparece una línea roja
+conectándolas y un chip con el nombre de la cuenta (`3 + 4`). A partir de ahí
+comparten una sola cuenta y la caja las cobra juntas.
+
+Se pueden encadenar todas las que quieras: arrastra la 5 hacia la 4 y quedan
+`3 + 4 + 5`.
+
+Para separarlas: toca la **✕** del chip en el plano, o el botón **Separar
+mesas** dentro del pedido. Al cobrar se sueltan solas.
+
+> Cada plato guarda la mesa donde se pidió, así que al separarlas cada una se
+> queda con lo suyo. Por eso la comanda de cocina sigue diciendo la mesa
+> concreta a la que hay que llevar el plato, con la unión anotada abajo.
+
+### Tomar el pedido
+
 El código manda. El lector grande muestra el número y resuelve el nombre del
-plato mientras escribes.
+plato mientras escribes. Abajo, la pantalla se divide en dos mitades: el
+**teclado numérico a la izquierda** y las **notas de cocina a la derecha**, con
+sus botones **Listo** (confirma la nota y cierra el teclado de la tablet) y
+**Limpiar**.
 
 **Tres formas de elegir un plato:**
 
@@ -55,11 +97,14 @@ plato mientras escribes.
 | `Retroceso` | Borra el último dígito |
 | `Esc` | Limpia todo |
 
+Los atajos de teclado están listados al final de la pantalla; en tablet, donde
+no hay teclado físico, se ocultan solos.
+
 **Detalles que importan en servicio:**
 
 - Cada mesa guarda su propio pedido a medio hacer. Si la mesa 3 te llama
-  mientras armas la de la 7, cambias de mesa y no pierdes nada — ni si se
-  recarga la página.
+  mientras armas la de la 7, vuelves al salón, entras a la 3 y no pierdes nada
+  — ni si se recarga la página.
 - Las notas rápidas (*sin cebolla*, *bien picante*, *para llevar*…) se tocan,
   no se escriben. Se pueden combinar y hay un campo libre para lo demás.
 - Los platos con dos tamaños muestran **Regular / Familiar** con su precio.
@@ -115,7 +160,8 @@ El ticket sale formateado para **ticketera térmica de 80 mm**.
 ## 3 · Caja
 
 - **Cuentas** — todas las mesas abiertas con su total. Las que todavía tienen
-  platos en cocina salen marcadas, para no cobrar algo que no salió.
+  platos en cocina salen marcadas, para no cobrar algo que no salió. Las mesas
+  unidas aparecen como una sola cuenta (`3+4`).
 - **Agregar a la cuenta** — grilla de gaseosas, cervezas y jugos de un toque,
   o el código directo. Estas ventas van a la cuenta pero **no** a cocina.
 - **Cobro** — descuento en soles o en porcentaje, medio de pago (Efectivo,

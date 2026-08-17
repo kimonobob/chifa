@@ -1,10 +1,16 @@
-/* Módulo del mozo: marcar códigos y enviar rondas a cocina. */
+/* Módulo del mozo.
+   Vista 1 · Salón: croquis de mesas. Se toca una para tomarle el pedido y se
+              arrastra de una a otra para juntarlas.
+   Vista 2 · Pedido: lector de códigos, teclado a la izquierda y notas de
+              cocina a la derecha.                                          */
 
 (() => {
   const $ = s => document.querySelector(s);
+  const $$ = s => [...document.querySelectorAll(s)];
   const BORRADORES = 'chifa:borradores';
 
   const st = {
+    vista: 'salon',
     mesa: null,
     buf: '',                 // dígitos marcados, máximo 3
     cant: 1,
@@ -24,40 +30,234 @@
     try { localStorage.setItem(BORRADORES, JSON.stringify(st.borradores)); }
     catch (e) { /* sin persistencia */ }
   }
-  function recordarMesa(m) {
-    try { sessionStorage.setItem('chifa:mesa', m); } catch (e) {}
-  }
-  function mesaRecordada() {
-    try { return sessionStorage.getItem('chifa:mesa'); } catch (e) { return null; }
-  }
   const borrador = () => (st.mesa ? (st.borradores[st.mesa] || (st.borradores[st.mesa] = [])) : []);
-
   const platoActual = () => (st.buf ? Store.plato(Number(st.buf)) : null);
 
-  // ── Mesas ────────────────────────────────────────────────────────────────
-  function pintarMesas() {
-    const cuentas = Store.cuentas();
-    $('#mesas').innerHTML = Store.mesas().map(m => {
-      const c = cuentas.find(x => x.mesa === m);
-      const pend = (st.borradores[m] || []).length;
-      const clases = ['mesa-btn'];
-      if (c) clases.push('ocupada');
-      if (m === st.mesa) clases.push('activa');
-      const etq = isNaN(Number(m)) ? m : `Mesa ${m}`;
-      return `<button type="button" class="${clases.join(' ')}" data-mesa="${UI.esc(m)}" title="${etq}">
-        ${isNaN(Number(m)) ? UI.esc(m.slice(0, 4)) : UI.esc(m)}
-        <small>${pend ? `+${pend}` : c ? c.total.toFixed(0) : '·'}</small>
-      </button>`;
-    }).join('');
+  // ═══ VISTA 1 · CROQUIS DEL SALÓN ═════════════════════════════════════════
+  const planoEl = $('#plano');
+
+  function estadoDeCuenta(c) {
+    if (!c) return {};
+    return {
+      enCocina: c.pedidos.some(p => p.estado === 'nuevo' || p.estado === 'preparando'),
+      lista: c.pedidos.some(p => p.estado === 'listo')
+    };
   }
 
-  // ── Lector ───────────────────────────────────────────────────────────────
+  function pintarSalon() {
+    if (unir) return;                 // no rearmar el plano a media unión
+    const cuentas = Store.cuentas();
+    const todas = Store.mesas();
+    const numeradas = todas.filter(m => !isNaN(Number(m)));
+    const zonas = todas.filter(m => isNaN(Number(m)));
+    const columnas = [1, 2, 4, 5];        // la columna 3 del grid es el pasillo
+
+    $('#mesas-plano').innerHTML = numeradas.map((m, i) => {
+      const c = cuentas.find(x => x.mesas.includes(m));
+      const g = Store.grupoDe(m);
+      const esPrincipal = !g || g.principal === m;
+      const { enCocina, lista } = estadoDeCuenta(c);
+
+      const clases = ['mesa-plano'];
+      if (c) clases.push('ocupada');
+      if (enCocina) clases.push('cocina');
+      else if (lista) clases.push('lista');
+      if (g) clases.push('unida');
+
+      let info = '', tiempo = '';
+      if (g && !esPrincipal) {
+        info = `<span class="mp-info">con ${UI.esc(g.principal)}</span>`;
+      } else if (c) {
+        info = `<span class="mp-info dinero">${c.total.toFixed(2)}</span>`;
+        tiempo = `<span class="mp-tiempo" data-desde="${c.desde}">${UI.transcurrido(c.desde)}</span>`;
+      }
+
+      return `<button type="button" class="${clases.join(' ')}" data-mesa="${UI.esc(m)}"
+        style="grid-column:${columnas[i % 4]};grid-row:${Math.floor(i / 4) + 1}"
+        aria-label="Mesa ${UI.esc(m)}${c ? `, ocupada, ${UI.soles(c.total)}` : ', libre'}">
+        ${(enCocina || lista) ? '<span class="mp-punto"></span>' : ''}
+        <span class="mp-num">${UI.esc(m)}</span>${info}${tiempo}
+      </button>`;
+    }).join('');
+
+    $('#zonas').innerHTML = zonas.map(m => {
+      const c = cuentas.find(x => x.mesas.includes(m));
+      return `<button type="button" class="zona-btn ${c ? 'ocupada' : ''}" data-mesa="${UI.esc(m)}">
+        <span>${UI.esc(m)}</span>
+        <span class="zt">${c ? UI.soles(c.total) : 'libre'}</span>
+      </button>`;
+    }).join('');
+
+    requestAnimationFrame(dibujarUniones);
+  }
+
+  /* Dibuja las líneas que conectan las mesas unidas, más el chip para
+     separarlas. Se recalcula con cada pintado y al cambiar el tamaño. */
+  function dibujarUniones() {
+    const svg = $('#uniones'), chips = $('#chips-grupo');
+    if (!svg || !planoEl || $('#vista-salon').hidden) return;
+    const base = planoEl.getBoundingClientRect();
+    if (!base.width) return;
+
+    svg.setAttribute('viewBox', `0 0 ${base.width} ${base.height}`);
+    svg.setAttribute('width', base.width);
+    svg.setAttribute('height', base.height);
+
+    let lineas = '', marcas = '';
+    Store.grupos().forEach(g => {
+      const centros = g.mesas.map(m => {
+        const el = planoEl.querySelector(`.mesa-plano[data-mesa="${m}"]`);
+        if (!el) return null;
+        const r = el.getBoundingClientRect();
+        return { x: r.left - base.left + r.width / 2, y: r.top - base.top + r.height / 2 };
+      }).filter(Boolean);
+      if (centros.length < 2) return;
+
+      for (let i = 1; i < centros.length; i++) {
+        lineas += `<line x1="${centros[i - 1].x}" y1="${centros[i - 1].y}" x2="${centros[i].x}" y2="${centros[i].y}"/>`;
+      }
+      const cx = centros.reduce((t, p) => t + p.x, 0) / centros.length;
+      const cy = centros.reduce((t, p) => t + p.y, 0) / centros.length;
+      marcas += `<span class="chip-grupo" style="left:${cx}px;top:${cy}px">
+        ${UI.esc(g.mesas.join(' + '))}
+        <button type="button" data-separar="${UI.esc(g.principal)}" aria-label="Separar mesas">✕</button>
+      </span>`;
+    });
+    svg.innerHTML = lineas;
+    chips.innerHTML = marcas;
+  }
+
+  // ── Arrastrar de una mesa a otra para juntarlas ──────────────────────────
+  let unir = null, suprimirClick = false;
+
+  function lineaFantasma(x, y) {
+    const svg = $('#uniones');
+    const base = planoEl.getBoundingClientRect();
+    const r = unir.el.getBoundingClientRect();
+    let l = svg.querySelector('line.fantasma');
+    if (!l) {
+      l = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      l.setAttribute('class', 'fantasma');
+      svg.appendChild(l);
+    }
+    l.setAttribute('x1', r.left - base.left + r.width / 2);
+    l.setAttribute('y1', r.top - base.top + r.height / 2);
+    l.setAttribute('x2', x - base.left);
+    l.setAttribute('y2', y - base.top);
+  }
+  function quitarFantasma() {
+    const l = $('#uniones') && $('#uniones').querySelector('line.fantasma');
+    if (l) l.remove();
+  }
+
+  planoEl.addEventListener('pointerdown', e => {
+    const t = e.target.closest('.mesa-plano');
+    if (!t) return;
+    unir = { origen: t.dataset.mesa, el: t, x0: e.clientX, y0: e.clientY, movido: 0, destino: null };
+  });
+
+  document.addEventListener('pointermove', e => {
+    if (!unir) return;
+    unir.movido = Math.max(unir.movido, Math.hypot(e.clientX - unir.x0, e.clientY - unir.y0));
+    if (unir.movido < 10) return;
+    e.preventDefault();
+    unir.el.classList.add('origen');
+
+    const bajo = document.elementFromPoint(e.clientX, e.clientY);
+    const t = bajo && bajo.closest ? bajo.closest('.mesa-plano') : null;
+    const destino = (t && t.dataset.mesa !== unir.origen) ? t.dataset.mesa : null;
+    if (destino !== unir.destino) {
+      $$('.mesa-plano.destino').forEach(x => x.classList.remove('destino'));
+      if (t && destino) t.classList.add('destino');
+      unir.destino = destino;
+    }
+    lineaFantasma(e.clientX, e.clientY);
+  }, { passive: false });
+
+  function soltarUnion() {
+    if (!unir) return;
+    const u = unir;
+    unir = null;
+    $$('.mesa-plano.origen, .mesa-plano.destino').forEach(x => x.classList.remove('origen', 'destino'));
+    quitarFantasma();
+    if (u.movido < 10) return;              // fue un toque, no un arrastre
+
+    suprimirClick = true;                   // que el toque no abra la mesa
+    setTimeout(() => { suprimirClick = false; }, 350);
+    if (u.destino) {
+      Store.unirMesas(u.origen, u.destino);
+      UI.toast(`${Store.nombreCuenta(u.origen)} — cuenta compartida`, 'ok');
+    }
+  }
+  document.addEventListener('pointerup', soltarUnion);
+  document.addEventListener('pointercancel', soltarUnion);
+
+  planoEl.addEventListener('click', e => {
+    const sep = e.target.closest('[data-separar]');
+    if (sep) {
+      Store.separarMesas(sep.dataset.separar);
+      UI.toast('Mesas separadas');
+      return;
+    }
+    if (suprimirClick) return;
+    const t = e.target.closest('.mesa-plano');
+    if (t) abrirMesa(t.dataset.mesa);
+  });
+
+  $('#zonas').addEventListener('click', e => {
+    const b = e.target.closest('.zona-btn');
+    if (b) abrirMesa(b.dataset.mesa);
+  });
+
+  window.addEventListener('resize', () => requestAnimationFrame(dibujarUniones));
+
+  // ── Cambio de vista ──────────────────────────────────────────────────────
+  function irASalon() {
+    st.vista = 'salon';
+    $('#vista-salon').hidden = false;
+    $('#vista-pedido').hidden = true;
+    pintarSalon();
+  }
+
+  function abrirMesa(mesa) {
+    st.mesa = mesa;
+    st.vista = 'pedido';
+    $('#vista-salon').hidden = true;
+    $('#vista-pedido').hidden = false;
+    setBuf('');
+    setCant(1);
+    limpiarNotas();
+    pintarCabecera();
+    pintarPedido();
+    pintarLector();
+  }
+
+  $('#volver').onclick = irASalon;
+  $('#separar').onclick = () => {
+    if (!st.mesa) return;
+    Store.separarMesas(st.mesa);
+    UI.toast('Mesas separadas');
+    pintarCabecera();
+    pintarPedido();
+  };
+
+  function pintarCabecera() {
+    if (!st.mesa) return;
+    $('#titulo-mesa').textContent = Store.nombreCuenta(st.mesa);
+    $('#separar').hidden = !Store.grupoDe(st.mesa);
+    const c = Store.cuentaDe(st.mesa);
+    $('#resumen-mesa').textContent = c
+      ? `${c.pedidos.length} ronda${c.pedidos.length === 1 ? '' : 's'} · ${UI.soles(c.total)} · desde ${UI.hora(c.desde)}`
+      : 'Mesa sin consumo';
+  }
+
+  // ═══ VISTA 2 · LECTOR DE CÓDIGOS ═════════════════════════════════════════
   function pintarLector() {
     const p = platoActual();
     const d = st.buf.padStart(3, ' ').split('');
     $('#slots').innerHTML = d.map((ch, i) => {
       const vacio = ch === ' ';
-      const cursor = i === st.buf.length - 1 || (!st.buf && i === 2);
+      const cursor = i === st.buf.length - 1;
       return `<span class="slot ${vacio ? 'vacio' : ''} ${cursor && st.buf ? 'cursor' : ''}">${vacio ? '·' : ch}</span>`;
     }).join('');
 
@@ -144,7 +344,8 @@
       const c = codigoEnCentro();
       if (c != null && String(c) !== st.buf) {
         st.buf = String(c);
-        if (!platoActual() || !platoActual().pf) st.tamano = 'R';
+        const p = platoActual();
+        if (!p || !p.pf) st.tamano = 'R';
         pintarLector();
         marcarCentro();
       }
@@ -164,7 +365,7 @@
     arrastre.movido = Math.max(arrastre.movido, Math.abs(dx));
     rueda.scrollLeft = arrastre.scroll - dx;
   });
-  const soltar = () => {
+  const soltarRueda = () => {
     if (!arrastre) return;
     const movido = arrastre.movido;
     arrastre = null;
@@ -174,14 +375,13 @@
       if (c != null) { st.buf = String(c); pintarLector(); centrar(c); marcarCentro(); }
     }
   };
-  rueda.addEventListener('pointerup', soltar);
-  rueda.addEventListener('pointercancel', soltar);
-  rueda.addEventListener('pointerleave', soltar);
+  rueda.addEventListener('pointerup', soltarRueda);
+  rueda.addEventListener('pointercancel', soltarRueda);
+  rueda.addEventListener('pointerleave', soltarRueda);
 
   rueda.addEventListener('click', e => {
     const it = e.target.closest('.rueda-item');
-    if (!it) return;
-    setBuf(it.dataset.c);
+    if (it) setBuf(it.dataset.c);
   });
 
   /* Rueda del mouse sobre el lector: sube o baja el código de uno en uno. */
@@ -210,9 +410,10 @@
     else digito(k);
   });
 
-  // ── Notas rápidas ────────────────────────────────────────────────────────
+  // ── Notas de cocina ──────────────────────────────────────────────────────
   $('#notas').innerHTML = NOTAS_RAPIDAS.map(n =>
     `<button type="button" class="nota-chip" data-n="${UI.esc(n)}">${UI.esc(n)}</button>`).join('');
+
   $('#notas').addEventListener('click', e => {
     const b = e.target.closest('.nota-chip');
     if (!b) return;
@@ -230,6 +431,19 @@
     $('#nota-libre').value = '';
     $('#notas').querySelectorAll('.nota-chip').forEach(b => b.classList.remove('on'));
   }
+
+  /* "Listo" cierra el teclado de la tablet y confirma la nota que quedará
+     pegada al próximo plato que se agregue. */
+  $('#nota-listo').onclick = () => {
+    $('#nota-libre').blur();
+    const t = notasTexto();
+    UI.toast(t ? `Nota lista: ${t}` : 'Sin nota para este plato');
+  };
+  $('#nota-limpiar').onclick = () => {
+    limpiarNotas();
+    $('#nota-libre').blur();
+    UI.toast('Notas limpias');
+  };
 
   // ── Acciones sobre el código ─────────────────────────────────────────────
   function setBuf(v, conCentro = true) {
@@ -294,7 +508,6 @@
     setCant(1);
     limpiarNotas();
     pintarPedido();
-    pintarMesas();
   }
 
   function enviar() {
@@ -305,7 +518,7 @@
     guardarBorradores();
     UI.toast(`Pedido N° ${p.num} enviado a cocina`, 'ok');
     pintarPedido();
-    pintarMesas();
+    pintarCabecera();
   }
   $('#enviar').onclick = enviar;
 
@@ -314,7 +527,6 @@
     st.borradores[st.mesa] = [];
     guardarBorradores();
     pintarPedido();
-    pintarMesas();
   };
 
   $('#lineas').addEventListener('click', e => {
@@ -323,7 +535,6 @@
       borrador().splice(Number(q.dataset.quitar), 1);
       guardarBorradores();
       pintarPedido();
-      pintarMesas();
       return;
     }
     const a = e.target.closest('[data-anular]');
@@ -332,7 +543,7 @@
       if (confirm('¿Quitar este plato del pedido ya enviado?')) {
         Store.quitarItem(pid, uid);
         pintarPedido();
-        pintarMesas();
+        pintarCabecera();
       }
       return;
     }
@@ -344,11 +555,8 @@
   });
 
   function pintarPedido() {
-    $('#titulo-mesa').textContent = st.mesa
-      ? (isNaN(Number(st.mesa)) ? st.mesa : `Mesa ${st.mesa}`)
-      : 'Mesa —';
-
     const cuenta = st.mesa ? Store.cuentaDe(st.mesa) : null;
+    const grupo = st.mesa ? Store.grupoDe(st.mesa) : null;
     const items = borrador();
     let html = '';
 
@@ -357,7 +565,7 @@
       cuenta.pedidos.slice().sort((a, b) => a.creado - b.creado).forEach(p => {
         html += `<div class="ronda-previa">
           <div class="rot">
-            <span>Pedido N° ${p.num} · ${UI.hora(p.creado)}</span>
+            <span>Pedido N° ${p.num}${grupo ? ` · mesa ${UI.esc(p.mesa)}` : ''} · ${UI.hora(p.creado)}</span>
             <span>
               <span class="pill ${p.estado}">${p.estado}</span>
               <button class="btn chico fantasma" data-reimprimir="${p.id}" style="margin-left:6px">Copia</button>
@@ -379,7 +587,10 @@
 
     // Ronda en preparación (aún no enviada)
     if (items.length) {
-      html += `<div class="ronda-previa"><div class="rot"><span>Por enviar</span><span>${items.length} línea${items.length === 1 ? '' : 's'}</span></div></div>`;
+      html += `<div class="ronda-previa"><div class="rot">
+        <span>Por enviar${grupo ? ` · mesa ${UI.esc(st.mesa)}` : ''}</span>
+        <span>${items.length} línea${items.length === 1 ? '' : 's'}</span>
+      </div></div>`;
       html += items.map((i, idx) => `
         <div class="linea">
           ${UI.chapa(i.codigo, i.bar ? 'bar' : '')}
@@ -390,11 +601,7 @@
         </div>`).join('');
     }
 
-    if (!html) {
-      html = `<div class="vacio-msg">${st.mesa
-        ? 'Marca un código y toca <b>Agregar al pedido</b>.'
-        : 'Elige una mesa arriba para empezar.'}</div>`;
-    }
+    if (!html) html = '<div class="vacio-msg">Marca un código y toca <b>Agregar al pedido</b>.</div>';
     $('#lineas').innerHTML = html;
 
     const totalBorrador = items.reduce((t, i) =>
@@ -404,24 +611,14 @@
     $('#enviar').disabled = !st.mesa || !items.length;
   }
 
-  // ── Selección de mesa ────────────────────────────────────────────────────
-  $('#mesas').addEventListener('click', e => {
-    const b = e.target.closest('.mesa-btn');
-    if (!b) return;
-    st.mesa = b.dataset.mesa;
-    recordarMesa(st.mesa);
-    pintarMesas();
-    pintarPedido();
-    pintarLector();
-  });
-
   // ── Atajos de teclado ────────────────────────────────────────────────────
   document.addEventListener('keydown', e => {
-    const enCampo = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
-    if (enCampo) {
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) {
       if (e.key === 'Escape') e.target.blur();
       return;
     }
+    if (st.vista !== 'pedido') return;
+
     if (e.key >= '0' && e.key <= '9') { digito(e.key); e.preventDefault(); return; }
     switch (e.key) {
       case 'Backspace': setBuf(st.buf.slice(0, -1)); e.preventDefault(); break;
@@ -441,41 +638,37 @@
     }
   });
 
-  // ── Arranque ─────────────────────────────────────────────────────────────
-  const selMozo = $('#sel-mozo');
-  selMozo.value = Store.config().mozo;
-  selMozo.onchange = () => Store.setConfig({ mozo: selMozo.value });
-
-  st.mesa = mesaRecordada() || null;
-  if (st.mesa && !Store.mesas().includes(st.mesa)) st.mesa = null;
-
-  pintarMesas();
-  pintarRueda();
-  pintarLector();
-  pintarPedido();
-
-  /* Avisar al mozo cuando cocina marca un pedido como listo. */
+  // ── Avisos de cocina ─────────────────────────────────────────────────────
   let listosVistos = new Set(Store.pedidosActivos().filter(p => p.estado === 'listo').map(p => p.id));
   function revisarListos() {
     const listos = Store.pedidosActivos().filter(p => p.estado === 'listo');
     listos.forEach(p => {
       if (!listosVistos.has(p.id)) {
         listosVistos.add(p.id);
-        UI.toast(`Listo para recoger: ${isNaN(Number(p.mesa)) ? p.mesa : `mesa ${p.mesa}`} · pedido N° ${p.num}`, 'ok');
+        UI.toast(`Listo para recoger: ${Store.nombreCuenta(p.mesa)} · pedido N° ${p.num}`, 'ok');
         UI.campana();
       }
     });
     listosVistos = new Set([...listosVistos].filter(id => listos.some(p => p.id === id)));
   }
 
+  // ── Arranque ─────────────────────────────────────────────────────────────
+  const selMozo = $('#sel-mozo');
+  selMozo.value = Store.config().mozo;
+  selMozo.onchange = () => Store.setConfig({ mozo: selMozo.value });
+
+  pintarRueda();
+  irASalon();
+
   /* La rueda solo se rearma si la carta cambió (agotados, precios): rearmarla
      en cada pedido nuevo le movería el scroll al mozo mientras marca. */
   let firmaCarta = JSON.stringify(Store.estado().cartaEdits);
 
   Store.on(() => {
-    pintarMesas();
-    pintarPedido();
     revisarListos();
+    if (st.vista === 'salon') pintarSalon();
+    else { pintarCabecera(); pintarPedido(); }
+
     const firma = JSON.stringify(Store.estado().cartaEdits);
     if (firma !== firmaCarta) {
       firmaCarta = firma;
@@ -484,6 +677,18 @@
       if (st.buf) centrar(Number(st.buf), false);
     }
   });
-  setInterval(() => { $('#reloj').textContent = UI.horaSeg(Date.now()); }, 1000);
+
+  /* Solo el texto del cronómetro: repintar el plano entero cada segundo
+     cortaría un arrastre en curso. */
+  function tickSalon() {
+    $$('#mesas-plano .mp-tiempo').forEach(el => {
+      el.textContent = UI.transcurrido(Number(el.dataset.desde));
+    });
+  }
+
+  setInterval(() => {
+    $('#reloj').textContent = UI.horaSeg(Date.now());
+    if (st.vista === 'salon') tickSalon();
+  }, 1000);
   $('#reloj').textContent = UI.horaSeg(Date.now());
 })();

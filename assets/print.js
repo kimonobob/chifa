@@ -51,10 +51,15 @@ const Impresion = (() => {
         </td>
       </tr>`).join('');
 
+    // La comanda lleva la mesa concreta a la que se sirve; si está unida a
+    // otras, se anota abajo como referencia.
+    const otras = Store.mesasDe(p.mesa).filter(m => m !== String(p.mesa));
+
     return `<div class="ticket">
       <div class="t-centro">
         <div class="t-titulo">COMANDA${copia ? ' (COPIA)' : ''}</div>
         <div class="t-mesa">MESA ${UI.esc(p.mesa)}</div>
+        ${otras.length ? `<div class="t-sub">unida con ${UI.esc(otras.join(', '))}</div>` : ''}
         <div class="t-sub">Pedido N° ${p.num} &middot; ${UI.horaSeg(p.creado)}</div>
         <div class="t-sub">Mozo: ${UI.esc(p.mozo)}</div>
       </div>
@@ -94,7 +99,7 @@ const Impresion = (() => {
       ${cab()}
       ${linea()}
       <div class="t-centro"><div class="t-titulo">PRECUENTA</div>
-      <div class="t-mesa">MESA ${UI.esc(mesa)}</div>
+      <div class="t-mesa">MESA ${UI.esc(Store.mesaCorta(mesa))}</div>
       <div class="t-sub">${UI.fecha(Date.now())} &middot; ${UI.hora(Date.now())}</div></div>
       ${linea()}
       <table>${lineas.map(l => `
@@ -120,7 +125,7 @@ const Impresion = (() => {
       ${cab()}
       ${linea()}
       <div class="t-centro"><div class="t-titulo">BOLETA DE VENTA</div>
-      <div class="t-sub">N° ${String(v.num).padStart(5, '0')} &middot; Mesa ${UI.esc(v.mesa)}</div>
+      <div class="t-sub">N° ${String(v.num).padStart(5, '0')} &middot; ${UI.esc(v.nombreMesa || `Mesa ${v.mesa}`)}</div>
       <div class="t-sub">${UI.fecha(v.cerrado)} ${UI.hora(v.cerrado)} &middot; ${UI.esc(v.cajero)}</div></div>
       ${linea()}
       <table>${v.lineas.map(l => `

@@ -2,7 +2,8 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
 <title>Mozo · Chifaa</title>
 <link rel="icon" href="assets/favicon.svg">
 <link rel="stylesheet" href="assets/app.css">
@@ -12,7 +13,7 @@
 <header class="top">
   <div class="marca">Chifa<b>a</b> <span>Mozo</span></div>
   <div class="crece"></div>
-  <select id="sel-mozo" style="background:#221A15;border-color:#4A3A2B;color:var(--arroz)">
+  <select id="sel-mozo" aria-label="Mozo a cargo">
     <option>Mozo 1</option><option>Mozo 2</option><option>Mozo 3</option>
     <option>Mozo 4</option><option>Mozo 5</option>
   </select>
@@ -20,10 +21,50 @@
   <a class="salir" href="index.html">Inicio</a>
 </header>
 
-<main class="mozo">
+<!-- ══════════ VISTA 1 · CROQUIS DEL SALÓN ══════════ -->
+<main class="salon" id="vista-salon">
+
+  <div class="salon-cab">
+    <div>
+      <h1 class="salon-titulo">Salón</h1>
+      <p class="salon-ayuda">
+        Toca una mesa para tomar el pedido.
+        <b>Arrastra el dedo de una mesa a otra para juntarlas.</b>
+      </p>
+    </div>
+    <div class="leyenda">
+      <span><i class="pt libre"></i>Libre</span>
+      <span><i class="pt ocupada"></i>Ocupada</span>
+      <span><i class="pt cocina"></i>En cocina</span>
+      <span><i class="pt lista"></i>Para servir</span>
+    </div>
+  </div>
+
+  <div class="plano-caja">
+    <div class="plano" id="plano">
+      <div class="rotulo cocina">Cocina</div>
+      <div class="mesas-plano" id="mesas-plano"></div>
+      <div class="rotulo barra">Barra</div>
+      <div class="rotulo puerta">Entrada</div>
+      <svg class="uniones" id="uniones" aria-hidden="true"></svg>
+      <div class="chips-grupo" id="chips-grupo"></div>
+    </div>
+  </div>
+
+  <div class="zonas" id="zonas"></div>
+</main>
+
+<!-- ══════════ VISTA 2 · PEDIDO ══════════ -->
+<main class="mozo" id="vista-pedido" hidden>
   <section class="mozo-izq">
 
-    <div class="mesas-tira" id="mesas" aria-label="Elegir mesa"></div>
+    <div class="pedido-barra">
+      <button class="btn chico" id="volver" aria-label="Volver al salón">← Salón</button>
+      <h1 id="titulo-mesa">Mesa —</h1>
+      <button class="btn chico fantasma" id="separar" hidden>Separar mesas</button>
+      <span class="crece"></span>
+      <span class="resumen-mesa" id="resumen-mesa"></span>
+    </div>
 
     <!-- Lector: el código se resuelve en nombre mientras se escribe -->
     <div class="lector">
@@ -44,45 +85,52 @@
     <!-- Rueda deslizable de códigos -->
     <div class="rueda-caja">
       <div class="ayuda">
-        <span class="eyebrow">Desliza o arrastra para buscar</span>
-        <input id="buscar" type="search" placeholder="…o escribe el nombre" style="max-width:240px">
+        <span class="eyebrow">Desliza para buscar</span>
+        <input id="buscar" type="search" placeholder="…o escribe el nombre">
       </div>
       <div class="rueda" id="rueda" tabindex="0" aria-label="Rueda de códigos"></div>
       <div class="rueda-guia" aria-hidden="true"></div>
     </div>
 
+    <!-- Mitad izquierda: teclado · Mitad derecha: notas de cocina -->
     <div class="taller">
-      <div class="keypad" id="keypad"></div>
-
-      <div>
+      <div class="taller-izq">
         <div class="cant-fila">
-          <span class="eyebrow" style="width:76px">Cantidad</span>
+          <span class="eyebrow">Cantidad</span>
           <button type="button" id="menos" aria-label="Menos uno">−</button>
           <span class="valor" id="cant">1</span>
           <button type="button" id="mas" aria-label="Más uno">+</button>
         </div>
-
-        <p class="eyebrow" style="margin:0 0 7px">Notas para cocina</p>
-        <div class="notas-rapidas" id="notas"></div>
-        <input id="nota-libre" placeholder="Otra indicación…" style="width:100%;margin-bottom:14px">
-
-        <p class="eyebrow" style="margin:0 0 6px">Atajos de teclado</p>
-        <p style="font-size:.82rem;color:var(--txt-dim);margin:0;line-height:1.7">
-          <kbd>0</kbd>–<kbd>9</kbd> marca el código &middot;
-          <kbd>←</kbd><kbd>→</kbd> código ±1 &middot;
-          <kbd>↑</kbd><kbd>↓</kbd> cantidad &middot;
-          <kbd>F</kbd> familiar &middot;
-          <kbd>Enter</kbd> agrega &middot;
-          <kbd>Ctrl</kbd>+<kbd>Enter</kbd> envía a cocina &middot;
-          <kbd>Esc</kbd> limpia
-        </p>
+        <div class="keypad" id="keypad"></div>
       </div>
+
+      <div class="taller-der">
+        <p class="eyebrow">Notas para cocina</p>
+        <div class="notas-rapidas" id="notas"></div>
+        <input id="nota-libre" placeholder="Otra indicación…">
+        <div class="nota-acciones">
+          <button class="btn fantasma" id="nota-limpiar">Limpiar</button>
+          <button class="btn primario" id="nota-listo">Listo</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Atajos de teclado, al final -->
+    <div class="atajos">
+      <span class="eyebrow">Atajos</span>
+      <span><kbd>0</kbd>–<kbd>9</kbd> código</span>
+      <span><kbd>←</kbd><kbd>→</kbd> código ±1</span>
+      <span><kbd>↑</kbd><kbd>↓</kbd> cantidad</span>
+      <span><kbd>F</kbd> familiar</span>
+      <span><kbd>Enter</kbd> agrega</span>
+      <span><kbd>Ctrl</kbd>+<kbd>Enter</kbd> envía</span>
+      <span><kbd>Esc</kbd> limpia</span>
     </div>
   </section>
 
   <aside class="mozo-der">
     <div class="pedido-cab">
-      <h2 id="titulo-mesa">Mesa —</h2>
+      <h2>Pedido</h2>
       <button class="btn chico fantasma" id="vaciar">Vaciar</button>
     </div>
 
@@ -93,8 +141,8 @@
         <span class="etq">Por enviar</span>
         <span class="val dinero" id="total-borrador">S/ 0.00</span>
       </div>
-      <div class="total-fila" style="font-size:.86rem">
-        <span class="etq" style="letter-spacing:.1em">Ya en la mesa</span>
+      <div class="total-fila chica">
+        <span class="etq">Ya en la mesa</span>
         <span class="dinero" id="total-mesa">S/ 0.00</span>
       </div>
       <button class="btn lacado grande bloque" id="enviar" disabled>Enviar a cocina</button>
