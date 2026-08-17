@@ -144,7 +144,14 @@ Tiene dos vistas, se cambia con un toque en la barra de arriba.
 
 Pensada para que el cocinero no tenga que decidir nada: **el plato que va
 ahora se muestra enorme** — el código a pantalla casi completa, el nombre, la
-mesa y la nota — y al costado la cola de los que siguen, en orden.
+mesa y la nota. El costado va partido en dos: arriba **En cola**, con lo que
+falta; abajo **Ya entregados**, con lo que salió y a qué hora. Si se marcó un
+plato por error, **Deshacer** lo devuelve a la cola.
+
+**La tecla P pasa al siguiente plato.** Es la misma tecla configurable de la
+impresión, y hace lo que corresponde según la vista: en el tablero imprime lo
+pendiente, y acá despacha el plato actual y muestra el que sigue. La barra de
+arriba dice siempre qué hace. Se cambia con *Cambiar*.
 
 Los platos se cuentan de a uno. Si el mozo manda 3 chaufas, son **tres platos
 separados** en la cola, y cada vez que tocas *Plato listo* sale uno solo. La
@@ -169,15 +176,15 @@ Con **Imprimir** sale el papel de ese plato solo, con su código enorme.
 
 ### Tablero
 
-Tres columnas: **Entran → En el wok → Salen**.
+Tres columnas: **Entran → Preparado → Listo**.
 
 - Cada comanda muestra mesa, número de pedido, mozo y un **cronómetro**. Pasados
   12 minutos la tarjeta se marca en rojo.
 - Toca un plato para tacharlo cuando esté hecho. Toca el encabezado de la
   tarjeta para verla **en grande** (útil si la pantalla está lejos).
-- `A+` / `A−` cambian el tamaño de letra; **Pantalla completa** para el monitor
-  de cocina.
 - **Agotados** abre la lista de la carta para marcar lo que se acabó.
+- En **Ajustes** están el formato del papel, el tamaño de letra, el sonido y
+  la pantalla completa — lo que no se toca a cada rato.
 - Las bebidas no ensucian la comanda: salen aparte, bajo el rótulo *Barra*, y
   **no se imprimen** en el ticket de cocina.
 

@@ -281,7 +281,11 @@ const Store = (() => {
       if (estado === 'preparando' && !p.inicio) p.inicio = Date.now();
       if (estado === 'listo') p.listoEn = Date.now();
       if (estado === 'listo' || estado === 'servido') {
-        p.items.forEach(i => { i.listo = true; i.hechas = i.cant; });
+        p.items.forEach(i => {
+          i.listo = true;
+          i.hechas = i.cant;
+          i.tiempos = Array.from({ length: i.cant }, (_, k) => (i.tiempos || [])[k] || Date.now());
+        });
       }
     });
   }
@@ -291,7 +295,13 @@ const Store = (() => {
       const p = s.pedidos.find(x => x.id === pedidoId);
       if (!p) return;
       const i = p.items.find(y => y.uid === uid);
-      if (i) { i.listo = listo; i.hechas = listo ? i.cant : 0; }
+      if (i) {
+        i.listo = listo;
+        i.hechas = listo ? i.cant : 0;
+        i.tiempos = listo
+          ? Array.from({ length: i.cant }, (_, k) => (i.tiempos || [])[k] || Date.now())
+          : [];
+      }
       if (p.estado === 'nuevo' && listo) { p.estado = 'preparando'; p.inicio = Date.now(); }
     });
   }
@@ -304,7 +314,9 @@ const Store = (() => {
       if (!p) return;
       const i = p.items.find(y => y.uid === uid);
       if (!i) return;
-      i.hechas = Math.min(i.cant, (i.hechas || 0) + 1);
+      if ((i.hechas || 0) >= i.cant) return;
+      i.hechas = (i.hechas || 0) + 1;
+      i.tiempos = (i.tiempos || []).concat(Date.now());   // cuándo salió cada unidad
       i.listo = i.hechas >= i.cant;
       if (p.estado === 'nuevo') { p.estado = 'preparando'; p.inicio = Date.now(); }
       // Si ya salió todo lo que cocina, la comanda pasa a "listo".
@@ -372,6 +384,46 @@ const Store = (() => {
       });
     });
     return cola;
+  }
+
+  /* Deshacer: el cocinero marcó un plato por equivocación. */
+  function desmarcarUnidad(pedidoId, uid) {
+    mutar(s => {
+      const p = s.pedidos.find(x => x.id === pedidoId);
+      if (!p) return;
+      const i = p.items.find(y => y.uid === uid);
+      if (!i || !(i.hechas > 0)) return;
+      i.hechas -= 1;
+      i.tiempos = (i.tiempos || []).slice(0, i.hechas);
+      i.listo = i.hechas >= i.cant;
+      if (p.estado === 'listo' || p.estado === 'servido') {
+        p.estado = 'preparando';
+        delete p.listoEn;
+      }
+    });
+  }
+
+  /* Los platos que ya salieron, del más reciente al más antiguo. */
+  function platosEntregados(limite = 30) {
+    const lista = [];
+    pedidosActivos()
+      .filter(p => p.origen !== 'caja' && !p.pagado)
+      .forEach(p => {
+        p.items.forEach(i => {
+          if (i.bar) return;
+          const t = i.tiempos || [];
+          for (let u = 0; u < (i.hechas || 0); u++) {
+            lista.push({
+              clave: `${p.id}|${i.uid}|${u}`,
+              pedidoId: p.id, uid: i.uid, unidad: u,
+              codigo: i.codigo, nombre: i.nombre, tamano: i.tamano,
+              mesa: p.mesa, num: p.num, cant: i.cant,
+              cuando: t[u] || p.listoEn || p.creado
+            });
+          }
+        });
+      });
+    return lista.sort((a, b) => b.cuando - a.cuando).slice(0, limite);
   }
 
   /* Adelantar un plato (el más fácil, el que ya casi sale) o mandarlo al
@@ -519,7 +571,7 @@ const Store = (() => {
     on: cb => { oyentes.add(cb); return () => oyentes.delete(cb); },
     estado: leer, hoy, avisar,
     carta, plato, editarPlato, mesas, mesasMozo, ordenMesa, minutosPlato,
-    platosPendientes, priorizarItem,
+    platosPendientes, platosEntregados, priorizarItem, desmarcarUnidad,
     grupos, grupoDe, mesasDe, claveCuenta, unirMesas, separarMesas, nombreCuenta, mesaCorta,
     pedidoNuevo, agregarItem, estadoPedido, marcarItem, marcarUnidad,
     anularPedido, quitarItem, marcarImpreso,

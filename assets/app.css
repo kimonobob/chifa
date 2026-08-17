@@ -562,6 +562,25 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
   letter-spacing: .08em; font-size: .92rem; color: var(--txt-dim);
 }
 .modo-toggle button.on { background: var(--laton); color: var(--tinta); }
+.modo-toggle.grande button { padding: 10px 20px; font-size: 1.06rem; }
+.modo-toggle.grande button.on { background: var(--lacado); color: #fff; }
+.modo-toggle.vertical { flex-direction: column; }
+.modo-toggle.vertical button { text-align: left; }
+.modo-toggle.vertical button + button { border-top: 1px solid var(--linea); }
+
+/* Ajustes que no se tocan a cada rato, fuera de la barra */
+.ajustes-caja { position: relative; }
+.ajustes-panel {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 40; width: 260px;
+  display: grid; gap: 9px; padding: 14px;
+  background: var(--panel); border: 1px solid var(--linea); border-top: 3px solid var(--laton);
+  border-radius: var(--r); box-shadow: 0 18px 40px -14px rgba(0,0,0,.7);
+}
+.ajustes-panel .eyebrow { margin: 0; }
+.ajustes-fila { display: flex; align-items: center; gap: 10px; }
+.ajustes-fila span { flex: 1; text-align: center; font-family: var(--mono); font-size: .9rem; }
+.btn.bloque { width: 100%; }
+.tecla-vista #tecla-hace { text-transform: none; letter-spacing: 0; font-size: .82rem; }
 .tecla-vista {
   display: inline-flex; align-items: center; gap: 8px;
   font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--txt-dim);
@@ -658,8 +677,32 @@ body[data-app="mozo"] .comanda-items .nota, body[data-app="caja"] .comanda-items
    el cocinero sepa qué va después sin pensar.                             */
 .uno { flex: 1; display: grid; grid-template-columns: 1.5fr 1fr; gap: 1px; background: var(--linea); min-height: 0; }
 .uno-grande { background: var(--bg); display: flex; flex-direction: column; min-height: 0; overflow-y: auto; padding: 20px 22px; }
-.uno-cola { background: var(--bg); display: flex; flex-direction: column; min-height: 0; }
+
+/* El costado, partido en dos: arriba lo que falta, abajo lo que ya salió */
+.uno-lado { display: grid; grid-template-rows: 1fr 1fr; gap: 1px; background: var(--linea); min-height: 0; }
+.lado-mitad { background: var(--bg); display: flex; flex-direction: column; min-height: 0; }
 .uno-lista { flex: 1; overflow-y: auto; min-height: 0; }
+
+.entregado-item {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center;
+  padding: 9px 13px; border-bottom: 1px solid var(--linea); opacity: .72;
+}
+.entregado-item .en { min-width: 0; font-size: .95rem; line-height: 1.16; }
+.entregado-item .en small { display: block; color: var(--txt-dim); font-size: .74rem; }
+.entregado-item .chapa { background: #1E3328; color: var(--jade-cla); box-shadow: inset 0 0 0 1px rgba(63,174,131,.3); }
+.entregado-item .deshacer {
+  font-family: var(--display); font-stretch: condensed; text-transform: uppercase;
+  font-size: .7rem; letter-spacing: .1em; padding: 5px 9px; white-space: nowrap;
+  background: transparent; color: var(--txt-dim);
+  border: 1px solid var(--linea); border-radius: 100px;
+}
+.entregado-item .deshacer:hover { color: var(--lacado); border-color: var(--lacado); }
+.entregado-item.reciente { opacity: 1; }
+
+.sig-atajo {
+  margin: 10px 0 0; font-size: .84rem; color: var(--txt-dim);
+  display: flex; align-items: center; gap: 7px;
+}
 
 .sig-eyebrow {
   font-family: var(--display); font-stretch: condensed; text-transform: uppercase;

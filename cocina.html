@@ -19,13 +19,12 @@
 <div class="cocina">
 
   <div class="cocina-barra">
-    <div class="modo-toggle" id="vista">
+    <div class="modo-toggle grande" id="vista">
       <button type="button" data-v="tablero">Tablero</button>
       <button type="button" data-v="uno">Uno por uno</button>
     </div>
 
-    <span class="sep"></span>
-
+    <span class="sep orden-solo"></span>
     <span class="eyebrow orden-solo">Hacer primero</span>
     <div class="modo-toggle orden-solo" id="orden">
       <button type="button" data-o="llegada">El que llegó antes</button>
@@ -40,51 +39,69 @@
       <button type="button" data-m="manual">Manual</button>
       <button type="button" data-m="auto">Automático</button>
     </div>
+    <button class="btn chico fantasma" id="imprimir-ya">Imprimir pendiente</button>
+
+    <span class="sep"></span>
 
     <span class="tecla-vista">
-      Tecla
       <kbd id="tecla">P</kbd>
+      <span id="tecla-hace">imprime lo pendiente</span>
       <button class="btn chico fantasma" id="cambiar-tecla">Cambiar</button>
     </span>
 
-    <span class="sep"></span>
+    <span class="crece"></span>
 
-    <span class="eyebrow">Formato</span>
-    <div class="modo-toggle" id="formato">
-      <button type="button" data-f="comanda">Una comanda</button>
-      <button type="button" data-f="plato">Un papel por plato</button>
-    </div>
-
-    <span class="sep"></span>
-
-    <button class="btn chico fantasma" id="imprimir-ya">Imprimir pendiente</button>
     <button class="btn chico fantasma" id="agotados-btn">Agotados</button>
-    <button class="btn chico fantasma" id="sonido">Sonido: sí</button>
-    <button class="btn chico fantasma" id="letra-menos" aria-label="Letra más chica">A−</button>
-    <button class="btn chico fantasma" id="letra-mas" aria-label="Letra más grande">A+</button>
-    <button class="btn chico fantasma" id="pantalla">Pantalla completa</button>
+
+    <div class="ajustes-caja">
+      <button class="btn chico fantasma" id="ajustes-btn" aria-expanded="false">Ajustes ▾</button>
+      <div class="ajustes-panel" id="ajustes-panel" hidden>
+        <p class="eyebrow">Formato del papel</p>
+        <div class="modo-toggle vertical" id="formato">
+          <button type="button" data-f="comanda">Una comanda por pedido</button>
+          <button type="button" data-f="plato">Un papel por plato</button>
+        </div>
+
+        <p class="eyebrow">Pantalla</p>
+        <div class="ajustes-fila">
+          <button class="btn chico" id="letra-menos" aria-label="Letra más chica">A−</button>
+          <span id="letra-valor">100%</span>
+          <button class="btn chico" id="letra-mas" aria-label="Letra más grande">A+</button>
+        </div>
+        <button class="btn chico bloque" id="pantalla">Pantalla completa</button>
+        <button class="btn chico bloque" id="sonido">Sonido: sí</button>
+      </div>
+    </div>
   </div>
 
-  <!-- Vista plato por plato: el siguiente en grande, la cola al costado -->
+  <!-- ══ Vista plato por plato ══ -->
   <div class="uno" id="vista-uno" hidden>
     <section class="uno-grande" id="uno-grande"></section>
-    <aside class="uno-cola">
-      <div class="col-cab"><h2>En cola</h2><span class="conteo" id="uno-conteo">0</span></div>
-      <div class="uno-lista" id="uno-lista"></div>
+
+    <aside class="uno-lado">
+      <section class="lado-mitad">
+        <div class="col-cab"><h2>En cola</h2><span class="conteo" id="uno-conteo">0</span></div>
+        <div class="uno-lista" id="uno-lista"></div>
+      </section>
+      <section class="lado-mitad">
+        <div class="col-cab"><h2>Ya entregados</h2><span class="conteo" id="uno-entregados-n">0</span></div>
+        <div class="uno-lista" id="uno-entregados"></div>
+      </section>
     </aside>
   </div>
 
-  <div class="columnas" id="columnas"
+  <!-- ══ Vista tablero ══ -->
+  <div class="columnas" id="columnas">
     <section class="col" data-col="nuevo">
       <div class="col-cab"><h2>Entran</h2><span class="conteo" id="c-nuevo">0</span></div>
       <div class="col-cuerpo" id="col-nuevo"></div>
     </section>
     <section class="col" data-col="preparando">
-      <div class="col-cab"><h2>En el wok</h2><span class="conteo" id="c-preparando">0</span></div>
+      <div class="col-cab"><h2>Preparado</h2><span class="conteo" id="c-preparando">0</span></div>
       <div class="col-cuerpo" id="col-preparando"></div>
     </section>
     <section class="col" data-col="listo">
-      <div class="col-cab"><h2>Salen</h2><span class="conteo" id="c-listo">0</span></div>
+      <div class="col-cab"><h2>Listo</h2><span class="conteo" id="c-listo">0</span></div>
       <div class="col-cuerpo" id="col-listo"></div>
     </section>
   </div>

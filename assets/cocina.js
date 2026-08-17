@@ -102,7 +102,10 @@
         <button class="btn jade listo" data-uno="listo">Plato listo</button>
         <button class="btn fantasma" data-uno="imprimir">Imprimir</button>
         <button class="btn fantasma" data-uno="despues">Dejar para después</button>
-      </div>`;
+      </div>
+      <p class="sig-atajo">
+        <kbd>${mostrarTecla(Store.config().teclaImpresion)}</kbd> pasa al siguiente plato
+      </p>`;
 
     $('#uno-lista').innerHTML = cola.slice(1).map((x, idx) => `
       <button type="button" class="cola-item ${x.prio < 0 ? 'adelantado' : ''}" data-clave="${x.clave}">
@@ -112,6 +115,39 @@
           <small>Mesa ${UI.esc(x.mesa)}${x.cant > 1 ? ` · ${x.unidad + 1}/${x.cant}` : ''}${x.notas ? ` · ${UI.esc(x.notas)}` : ''}</small></span>
         <span class="cmin">${x.minutos} min <span class="ahora">Hacer ahora</span></span>
       </button>`).join('') || '<div class="vacio-msg">Nada más en cola</div>';
+
+    pintarEntregados();
+  }
+
+  /* Lo que ya salió, con la opción de deshacer si se marcó por error. */
+  function pintarEntregados() {
+    const hechos = Store.platosEntregados(30);
+    $('#uno-entregados-n').textContent = hechos.length;
+    $('#uno-entregados').innerHTML = hechos.map(x => `
+      <div class="entregado-item ${UI.minutos(x.cuando) < 2 ? 'reciente' : ''}">
+        ${UI.chapa(x.codigo)}
+        <span class="en">${UI.esc(x.nombre)}${x.tamano === 'F' ? ' (Fam.)' : ''}
+          <small>Mesa ${UI.esc(x.mesa)}${x.cant > 1 ? ` · ${x.unidad + 1}/${x.cant}` : ''} · ${UI.hora(x.cuando)}</small></span>
+        <button type="button" class="deshacer" data-deshacer="${x.pedidoId}|${x.uid}">Deshacer</button>
+      </div>`).join('') || '<div class="vacio-msg">Todavía no sale ningún plato</div>';
+  }
+
+  $('#uno-entregados').addEventListener('click', e => {
+    const b = e.target.closest('[data-deshacer]');
+    if (!b) return;
+    const [pid, uid] = b.dataset.deshacer.split('|');
+    Store.desmarcarUnidad(pid, uid);
+    UI.toast('Ese plato vuelve a la cola');
+  });
+
+  /* Despacha el plato actual y muestra el siguiente. */
+  function pasarDePlato() {
+    const s = colaOrdenada()[0];
+    if (!s) return UI.toast('No queda ningún plato por despachar');
+    Store.marcarUnidad(s.pedidoId, s.uid);
+    UI.campana();
+    const sigue = colaOrdenada()[0];
+    UI.toast(sigue ? `Ahora va el ${sigue.codigo} · ${sigue.nombre}` : 'Todo despachado', 'ok');
   }
 
   $('#uno-grande').addEventListener('click', e => {
@@ -120,8 +156,7 @@
     const s = colaOrdenada()[0];
     if (!s) return;
     if (b.dataset.uno === 'listo') {
-      Store.marcarUnidad(s.pedidoId, s.uid);
-      UI.campana();
+      pasarDePlato();
     } else if (b.dataset.uno === 'despues') {
       if (colaOrdenada().length < 2) return UI.toast('Es el único plato en cola');
       Store.priorizarItem(s.pedidoId, s.uid, true);
@@ -153,7 +188,7 @@
     ['nuevo', 'preparando', 'listo'].forEach(estado => {
       const lista = pedidos.filter(p => p.estado === estado);
       $(`#col-${estado}`).innerHTML = lista.map(p => tarjeta(p)).join('') ||
-        `<div class="vacio-msg">${estado === 'nuevo' ? 'Sin pedidos nuevos' : estado === 'preparando' ? 'Nada en el wok' : 'Nada por salir'}</div>`;
+        `<div class="vacio-msg">${estado === 'nuevo' ? 'Sin pedidos nuevos' : estado === 'preparando' ? 'Nada en preparación' : 'Nada por salir'}</div>`;
       $(`#c-${estado}`).textContent = lista.length;
     });
     if (foco) {
@@ -209,9 +244,11 @@
     if (Store.config().modoImpresion === 'auto') {
       const sinImprimir = nuevos.filter(p => !p.impreso);
       if (sinImprimir.length) imprimirLote(sinImprimir);
-    } else {
+    } else if (vista() === 'tablero') {
       const t = Store.config().teclaImpresion;
       UI.toast(`${nuevos.length} pedido${nuevos.length === 1 ? '' : 's'} nuevo${nuevos.length === 1 ? '' : 's'} · ${mostrarTecla(t)} para imprimir`);
+    } else {
+      UI.toast(`${nuevos.length} pedido${nuevos.length === 1 ? '' : 's'} más en la cola`);
     }
   }
 
@@ -227,8 +264,16 @@
       $('#tecla').classList.remove('capturando');
     }
     $('#sonido').textContent = `Sonido: ${c.sonido ? 'sí' : 'no'}`;
+    $('#letra-valor').textContent = `${Math.round(c.letraCocina * 100)}%`;
     $('#columnas').style.setProperty('--zoom', c.letraCocina);
-    $('#imprimir-ya').style.display = c.modoImpresion === 'auto' ? 'none' : '';
+    $('#vista-uno').style.setProperty('--zoom', c.letraCocina);
+
+    // La tecla hace una cosa u otra según la vista; que se lea en la barra.
+    const enUno = vista() === 'uno';
+    $('#tecla-hace').textContent = enUno
+      ? 'pasa al siguiente plato'
+      : (c.modoImpresion === 'manual' ? 'imprime lo pendiente' : 'la impresión va sola');
+    $('#imprimir-ya').hidden = enUno || c.modoImpresion === 'auto';
   }
 
   $('#vista').addEventListener('click', e => {
@@ -274,6 +319,19 @@
   };
   $('#letra-mas').onclick = () => Store.setConfig({ letraCocina: Math.min(2.2, +(Store.config().letraCocina + 0.15).toFixed(2)) });
   $('#letra-menos').onclick = () => Store.setConfig({ letraCocina: Math.max(0.8, +(Store.config().letraCocina - 0.15).toFixed(2)) });
+
+  const panel = $('#ajustes-panel');
+  $('#ajustes-btn').onclick = e => {
+    e.stopPropagation();
+    panel.hidden = !panel.hidden;
+    $('#ajustes-btn').setAttribute('aria-expanded', String(!panel.hidden));
+  };
+  document.addEventListener('click', e => {
+    if (!panel.hidden && !e.target.closest('.ajustes-caja')) {
+      panel.hidden = true;
+      $('#ajustes-btn').setAttribute('aria-expanded', 'false');
+    }
+  });
 
   $('#pantalla').onclick = () => {
     if (document.fullscreenElement) document.exitFullscreen();
@@ -381,12 +439,15 @@
     if (e.key === 'Escape' && foco) { cerrarFoco(); return; }
 
     const c = Store.config();
-    if (c.modoImpresion === 'manual' &&
-        e.key.toLowerCase() === String(c.teclaImpresion).toLowerCase() &&
-        !e.ctrlKey && !e.altKey && !e.metaKey) {
-      e.preventDefault();
-      imprimirPendientes();
-    }
+    const esLaTecla = e.key.toLowerCase() === String(c.teclaImpresion).toLowerCase() &&
+                      !e.ctrlKey && !e.altKey && !e.metaKey;
+    if (!esLaTecla) return;
+    e.preventDefault();
+    if (e.repeat) return;                    // mantenerla pulsada no despacha de más
+
+    // La misma tecla hace lo que toca en cada vista.
+    if (vista() === 'uno') pasarDePlato();
+    else if (c.modoImpresion === 'manual') imprimirPendientes();
   });
 
   // ── Arranque ─────────────────────────────────────────────────────────────
