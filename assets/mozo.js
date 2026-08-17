@@ -47,7 +47,7 @@
   function pintarSalon() {
     if (unir) return;                 // no rearmar el plano a media unión
     const cuentas = Store.cuentas();
-    const todas = Store.mesas();
+    const todas = Store.mesasMozo();        // sin Delivery: eso lo toma la caja
     const numeradas = todas.filter(m => !isNaN(Number(m)));
     const zonas = todas.filter(m => isNaN(Number(m)));
     const columnas = [1, 2, 4, 5];        // la columna 3 del grid es el pasillo
@@ -299,8 +299,7 @@
   let bloqueoScroll = false, tScroll = null;
 
   function pintarRueda() {
-    const f = st.filtro.trim().toLowerCase();
-    const lista = Store.carta().filter(p => !f || p.n.toLowerCase().includes(f) || String(p.c) === f);
+    const lista = Store.carta();
     rueda.innerHTML = lista.map(p => `
       <button type="button" class="rueda-item" data-c="${p.c}" style="${p.out ? 'opacity:.28' : ''}">
         <span class="rn">${String(p.c).padStart(2, '0')}</span>
@@ -510,9 +509,94 @@
     pintarLector();
   });
 
-  $('#buscar').addEventListener('input', e => {
-    st.filtro = e.target.value;
-    pintarRueda();
+  // ── Lista completa de la carta ───────────────────────────────────────────
+  /* Se abre desde "Ver lista de platos". El buscador filtra con cada tecla:
+     escribir "tip" ya deja a la vista los tipakay. Sin consulta, la carta se
+     muestra agrupada por categoría. */
+  let catActiva = 'todas';
+
+  function abrirLista() {
+    $('#lista-fondo').hidden = false;
+    $('#lista-buscar').value = '';
+    catActiva = 'todas';
+    pintarCategorias();
+    pintarLista();
+    // En tablet conviene ver la lista antes de que suba el teclado.
+    if (!matchMedia('(pointer: coarse)').matches) $('#lista-buscar').focus();
+  }
+  function cerrarLista() { $('#lista-fondo').hidden = true; }
+
+  function pintarCategorias() {
+    $('#lista-cats').innerHTML =
+      `<button type="button" class="cat-chip ${catActiva === 'todas' ? 'on' : ''}" data-cat="todas">Todas</button>` +
+      CATEGORIAS.map(c => `<button type="button" class="cat-chip ${catActiva === c.id ? 'on' : ''}" data-cat="${c.id}">
+        ${UI.esc(c.nombre)} <span style="opacity:.55">${UI.esc(c.rango)}</span>
+      </button>`).join('');
+  }
+
+  function pintarLista() {
+    const q = $('#lista-buscar').value;
+    let lista = Store.carta();
+    if (catActiva !== 'todas') lista = lista.filter(p => p.cat === catActiva);
+    lista = Texto.filtrarCarta(lista, q);
+
+    if (!lista.length) {
+      $('#lista-cuerpo').innerHTML = `<div class="lista-nada">
+        <b>Nada con “${UI.esc(q)}”</b>
+        Prueba con menos letras o toca otra categoría.
+      </div>`;
+      return;
+    }
+
+    const fila = p => `<button type="button" class="lista-item ${p.out ? 'agotado' : ''}" data-c="${p.c}">
+      ${UI.chapa(p.c, p.bar ? 'bar' : '')}
+      <span class="li-nom">${Texto.resaltar(p.n, q)}</span>
+      <span class="li-pre">${p.out ? 'Agotado' : UI.soles(p.p)}
+        ${!p.out && p.pf ? `<small>familiar ${p.pf.toFixed(2)}</small>` : ''}</span>
+    </button>`;
+
+    // Con búsqueda: lista corrida. Sin búsqueda: agrupada por categoría.
+    if (q.trim()) {
+      $('#lista-cuerpo').innerHTML =
+        `<div class="lista-grupo">${lista.length} plato${lista.length === 1 ? '' : 's'}</div>` +
+        lista.map(fila).join('');
+      return;
+    }
+    let html = '';
+    CATEGORIAS.forEach(c => {
+      const dela = lista.filter(p => p.cat === c.id);
+      if (!dela.length) return;
+      html += `<div class="lista-grupo">${UI.esc(c.nombre)} · ${UI.esc(c.rango)}</div>` + dela.map(fila).join('');
+    });
+    $('#lista-cuerpo').innerHTML = html;
+  }
+
+  $('#ver-lista').onclick = abrirLista;
+  $('#lista-cerrar').onclick = cerrarLista;
+  $('#lista-buscar').addEventListener('input', pintarLista);
+  $('#lista-fondo').addEventListener('click', e => { if (e.target.id === 'lista-fondo') cerrarLista(); });
+
+  $('#lista-cats').addEventListener('click', e => {
+    const b = e.target.closest('.cat-chip');
+    if (!b) return;
+    catActiva = b.dataset.cat;
+    pintarCategorias();
+    pintarLista();
+  });
+
+  $('#lista-cuerpo').addEventListener('click', e => {
+    const b = e.target.closest('.lista-item');
+    if (!b) return;
+    setBuf(b.dataset.c);
+    cerrarLista();
+  });
+
+  /* Enter con un solo resultado lo elige directo. */
+  $('#lista-buscar').addEventListener('keydown', e => {
+    if (e.key === 'Escape') { e.stopPropagation(); cerrarLista(); return; }
+    if (e.key !== 'Enter') return;
+    const items = $('#lista-cuerpo').querySelectorAll('.lista-item');
+    if (items.length === 1) items[0].click();
   });
 
   // ── Borrador del pedido ──────────────────────────────────────────────────
@@ -654,6 +738,11 @@
   document.addEventListener('keydown', e => {
     if (/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) {
       if (e.key === 'Escape') e.target.blur();
+      return;
+    }
+    // Con la lista abierta, las teclas son para la lista
+    if (!$('#lista-fondo').hidden) {
+      if (e.key === 'Escape') cerrarLista();
       return;
     }
     if (st.vista !== 'pedido') return;

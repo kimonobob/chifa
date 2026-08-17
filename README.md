@@ -37,7 +37,10 @@ una mesa, la de **pedido**.
 
 Lo primero que se ve, antes de elegir ningún plato: el plano del local con las
 15 mesas, cada una con **su número al centro**, más Cocina, Barra y Entrada de
-referencia. Las de Llevar, Delivery y Barra van en una fila aparte.
+referencia. Llevar y Barra van en una fila aparte.
+
+> **Delivery no aparece en el mozo**: esos pedidos los toma la caja, que puede
+> abrir tanto Delivery como Llevar desde su selector de mesa.
 
 Cada mesa muestra de un vistazo cómo está:
 
@@ -81,8 +84,27 @@ sus botones **Listo** (confirma la nota y cierra el teclado de la tablet) y
 2. **Deslizar** la rueda de códigos: arrástrala con el dedo o el mouse; el que
    queda en el centro es el seleccionado. También sirve la rueda del mouse
    sobre el lector.
-3. **Buscar por nombre**, para cuando el mozo es nuevo y todavía no se sabe
-   los números.
+3. **Ver la lista**, con el botón debajo del lector.
+
+### La lista de platos
+
+El botón **Ver lista de platos** abre la carta completa, agrupada por
+categoría, con chips para saltar a una categoría concreta.
+
+Arriba hay un buscador que **filtra con cada letra que escribes** y resalta lo
+que coincidió. No hace falta escribir la palabra completa ni escribirla igual
+que la carta:
+
+| Escribes | Encuentra |
+|---|---|
+| `tip` | los tres Tipakay |
+| `tipacay` | Tipakay, aunque la carta lo escriba con **k** |
+| `arros` | Arroz blanco |
+| `maracuya` | Maracuyá, sin necesidad de la tilde |
+| `pollo brocoli` | Pollo con brócoli — busca por palabras sueltas |
+| `6` | todos los códigos que empiezan con 6 |
+
+Se toca el plato y queda marcado en el lector, listo para agregar.
 
 **Atajos de teclado:**
 
@@ -116,7 +138,38 @@ no hay teclado físico, se ocultan solos.
 
 ## 2 · Cocina
 
-Tablero de tres columnas: **Entran → En el wok → Salen**.
+Tiene dos vistas, se cambia con un toque en la barra de arriba.
+
+### Uno por uno
+
+Pensada para que el cocinero no tenga que decidir nada: **el plato que va
+ahora se muestra enorme** — el código a pantalla casi completa, el nombre, la
+mesa y la nota — y al costado la cola de los que siguen, en orden.
+
+Los platos se cuentan de a uno. Si el mozo manda 3 chaufas, son **tres platos
+separados** en la cola, y cada vez que tocas *Plato listo* sale uno solo. La
+comanda recién se da por terminada cuando salieron los tres.
+
+Puedes decidir qué se hace primero con **Hacer primero**:
+
+| Opción | Qué hace |
+|---|---|
+| El que llegó antes | Orden de llegada, el normal |
+| El más fácil | Primero lo que menos demora — chaufas, entradas |
+| El más demorado | Primero lo pesado, para que vaya avanzando |
+
+Y si quieres saltarte el orden, **toca cualquier plato de la cola** y pasa a
+ser el siguiente. *Dejar para después* manda el actual al final.
+
+Los tiempos de cada categoría están en
+[assets/data.js](assets/data.js) (`MINUTOS_CATEGORIA`); ajústalos al ritmo de
+tu cocina.
+
+Con **Imprimir** sale el papel de ese plato solo, con su código enorme.
+
+### Tablero
+
+Tres columnas: **Entran → En el wok → Salen**.
 
 - Cada comanda muestra mesa, número de pedido, mozo y un **cronómetro**. Pasados
   12 minutos la tarjeta se marca en rojo.

@@ -316,6 +316,66 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
   text-transform: none; letter-spacing: 0;
 }
 
+/* ── Lista completa de la carta ────────────────────────────────────────────
+   Se abre desde "Ver lista de platos", debajo del lector de códigos.
+   El buscador filtra mientras se escribe y resalta lo que coincidió.      */
+.ver-lista { font-size: .9rem; }
+.lista-fondo {
+  position: fixed; inset: 0; z-index: 60; display: flex;
+  align-items: stretch; justify-content: center;
+  background: rgba(23,18,15,.55); padding: 0;
+}
+.lista-caja {
+  display: flex; flex-direction: column; width: min(720px, 100%);
+  background: var(--panel); border-left: 1px solid var(--linea); border-right: 1px solid var(--linea);
+  box-shadow: 0 0 60px rgba(0,0,0,.35); min-height: 0;
+}
+.lista-cab {
+  display: flex; gap: 10px; align-items: center; padding: 12px 14px;
+  background: var(--tinta); flex: 0 0 auto;
+}
+.lista-cab input {
+  flex: 1; min-width: 0; padding: 13px 15px; font-size: 1.1rem;
+  background: #2B211A; border: 1px solid #4A3A2B; color: var(--arroz); border-radius: var(--r);
+}
+.lista-cab input::placeholder { color: #8E7C68; }
+.lista-cab .btn { background: transparent; color: var(--arroz); border-color: #4A3A2B; }
+
+.lista-cats {
+  display: flex; gap: 6px; padding: 10px 14px; overflow-x: auto;
+  border-bottom: 1px solid var(--linea); background: var(--panel-2); flex: 0 0 auto;
+  scrollbar-width: thin;
+}
+.cat-chip {
+  flex: 0 0 auto; padding: 7px 13px; border-radius: 100px; font-size: .84rem;
+  background: var(--panel); border: 1px solid var(--linea); white-space: nowrap;
+}
+.cat-chip.on { background: var(--tinta); color: var(--arroz); border-color: var(--tinta); }
+
+.lista-cuerpo { flex: 1; overflow-y: auto; min-height: 0; }
+.lista-grupo {
+  padding: 9px 14px; background: var(--panel-2); border-bottom: 1px solid var(--linea);
+  font-family: var(--display); font-stretch: condensed; text-transform: uppercase;
+  letter-spacing: .16em; font-size: .74rem; color: var(--txt-dim);
+  position: sticky; top: 0; z-index: 1;
+}
+.lista-item {
+  display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+  width: 100%; text-align: left; padding: 12px 14px; background: transparent;
+  border: 0; border-bottom: 1px solid var(--linea);
+}
+.lista-item:hover, .lista-item:focus-visible { background: var(--panel-2); }
+.lista-item .li-nom { font-size: 1.02rem; line-height: 1.2; min-width: 0; }
+.lista-item .li-nom mark {
+  background: var(--laton-cla); color: var(--tinta); border-radius: 2px; padding: 0 1px;
+}
+.lista-item .li-pre { font-family: var(--mono); font-size: .92rem; text-align: right; white-space: nowrap; }
+.lista-item .li-pre small { display: block; font-size: .74rem; color: var(--txt-dim); }
+.lista-item.agotado { opacity: .45; }
+.lista-item.agotado .li-pre { color: var(--lacado); }
+.lista-nada { padding: 46px 24px; text-align: center; color: var(--txt-dim); }
+.lista-nada b { display: block; font-size: 1.1rem; color: var(--txt); margin-bottom: 6px; }
+
 /* Barra de la vista de pedido */
 .pedido-barra {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
@@ -592,6 +652,62 @@ body[data-app="mozo"] .comanda-items .nota, body[data-app="caja"] .comanda-items
   align-self: center; margin-left: auto;
 }
 .marca-impreso.no { color: var(--txt-dim); }
+
+/* ── Cocina · uno por uno ──────────────────────────────────────────────────
+   El plato que sigue va enorme; los demás en una cola al costado, para que
+   el cocinero sepa qué va después sin pensar.                             */
+.uno { flex: 1; display: grid; grid-template-columns: 1.5fr 1fr; gap: 1px; background: var(--linea); min-height: 0; }
+.uno-grande { background: var(--bg); display: flex; flex-direction: column; min-height: 0; overflow-y: auto; padding: 20px 22px; }
+.uno-cola { background: var(--bg); display: flex; flex-direction: column; min-height: 0; }
+.uno-lista { flex: 1; overflow-y: auto; min-height: 0; }
+
+.sig-eyebrow {
+  font-family: var(--display); font-stretch: condensed; text-transform: uppercase;
+  letter-spacing: .3em; font-size: .8rem; color: var(--lacado); margin: 0 0 6px;
+}
+.sig-chapa {
+  font-family: var(--display); font-stretch: condensed; font-weight: 600;
+  font-size: clamp(5rem, 17vh, 11rem); line-height: .84; color: var(--laton-cla);
+  font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+}
+.sig-nombre {
+  font-family: var(--display); font-stretch: condensed; text-transform: uppercase;
+  font-size: clamp(1.8rem, 5vh, 3.2rem); line-height: 1.02; margin: 4px 0 10px;
+}
+.sig-datos { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: baseline; margin-bottom: 12px; }
+.sig-datos b { font-family: var(--display); font-stretch: condensed; font-size: 1.9rem; line-height: 1; }
+.sig-datos .et { font-size: .72rem; letter-spacing: .16em; text-transform: uppercase; color: var(--txt-dim); display: block; }
+.sig-nota {
+  background: rgba(216,161,41,.12); border-left: 4px solid var(--laton);
+  padding: 10px 14px; margin-bottom: 14px; font-size: 1.24rem; color: var(--laton-cla);
+}
+.sig-acciones { display: flex; gap: 9px; flex-wrap: wrap; margin-top: auto; padding-top: 12px; }
+.sig-acciones .btn { flex: 1 1 130px; padding: 18px 16px; font-size: 1.2rem; }
+.sig-acciones .btn.listo { flex: 2 1 240px; }
+.uno-vacio { margin: auto; text-align: center; color: var(--txt-dim); padding: 40px 20px; }
+.uno-vacio b { display: block; font-family: var(--display); font-stretch: condensed;
+  text-transform: uppercase; font-size: 2rem; color: var(--jade-cla); margin-bottom: 8px; }
+
+.cola-item {
+  display: grid; grid-template-columns: auto auto 1fr auto; gap: 11px; align-items: center;
+  width: 100%; text-align: left; padding: 11px 13px; background: transparent;
+  border: 0; border-bottom: 1px solid var(--linea);
+}
+.cola-item:hover { background: var(--panel); }
+.cola-item .pos {
+  font-family: var(--mono); font-size: .78rem; color: var(--txt-dim); min-width: 1.6em;
+}
+.cola-item .cn { min-width: 0; font-size: 1.02rem; line-height: 1.16; }
+.cola-item .cn small { display: block; color: var(--txt-dim); font-size: .78rem; }
+.cola-item .cmin { font-family: var(--mono); font-size: .78rem; color: var(--txt-dim); white-space: nowrap; }
+.cola-item.adelantado { box-shadow: inset 3px 0 0 var(--lacado); }
+.cola-item .ahora {
+  font-family: var(--display); font-stretch: condensed; text-transform: uppercase;
+  font-size: .7rem; letter-spacing: .1em; color: var(--lacado);
+  border: 1px solid var(--lacado); border-radius: 100px; padding: 3px 8px; opacity: 0;
+}
+.cola-item:hover .ahora, .cola-item:focus-visible .ahora { opacity: 1; }
+@media (pointer: coarse) { .cola-item .ahora { opacity: 1; } }
 
 /* Foco: un solo pedido a pantalla grande */
 .foco-fondo {

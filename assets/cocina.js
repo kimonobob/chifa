@@ -54,7 +54,101 @@
     </article>`;
   }
 
+  // ── Vista "uno por uno" ──────────────────────────────────────────────────
+  const vista = () => Store.config().vistaCocina || 'tablero';
+  const orden = () => Store.config().ordenCocina || 'llegada';
+
+  /* La cola respeta primero lo que el cocinero adelantó a mano; después, el
+     criterio elegido. */
+  function colaOrdenada() {
+    const modo = orden();
+    return Store.platosPendientes().sort((a, b) => {
+      if (a.prio !== b.prio) return a.prio - b.prio;
+      if (modo === 'rapido' && a.minutos !== b.minutos) return a.minutos - b.minutos;
+      if (modo === 'demorado' && a.minutos !== b.minutos) return b.minutos - a.minutos;
+      if (a.creado !== b.creado) return a.creado - b.creado;
+      return a.unidad - b.unidad;
+    });
+  }
+
+  function pintarUno() {
+    const cola = colaOrdenada();
+    $('#uno-conteo').textContent = Math.max(0, cola.length - 1);
+
+    const s = cola[0];
+    if (!s) {
+      $('#uno-grande').innerHTML = `<div class="uno-vacio">
+        <b>Todo despachado</b>
+        No queda ningún plato por preparar.
+      </div>`;
+      $('#uno-lista').innerHTML = '';
+      return;
+    }
+
+    const deVarias = s.cant > 1 ? `<span><span class="et">Unidad</span><b>${s.unidad + 1}/${s.cant}</b></span>` : '';
+    $('#uno-grande').innerHTML = `
+      <p class="sig-eyebrow">Va este</p>
+      <div class="sig-chapa">${String(s.codigo).padStart(2, '0')}</div>
+      <h2 class="sig-nombre">${UI.esc(s.nombre)}${s.tamano === 'F' ? ' · familiar' : ''}</h2>
+      <div class="sig-datos">
+        <span><span class="et">Mesa</span><b>${UI.esc(s.mesa)}</b></span>
+        ${deVarias}
+        <span><span class="et">Esperando</span><b class="crono" data-creado="${s.creado}">${UI.transcurrido(s.creado)}</b></span>
+        <span><span class="et">Toma unos</span><b>${s.minutos} min</b></span>
+        <span><span class="et">Pedido</span><b>N° ${s.num}</b></span>
+      </div>
+      ${s.notas ? `<div class="sig-nota">${UI.esc(s.notas)}</div>` : ''}
+      <div class="sig-acciones">
+        <button class="btn jade listo" data-uno="listo">Plato listo</button>
+        <button class="btn fantasma" data-uno="imprimir">Imprimir</button>
+        <button class="btn fantasma" data-uno="despues">Dejar para después</button>
+      </div>`;
+
+    $('#uno-lista').innerHTML = cola.slice(1).map((x, idx) => `
+      <button type="button" class="cola-item ${x.prio < 0 ? 'adelantado' : ''}" data-clave="${x.clave}">
+        <span class="pos">${idx + 2}</span>
+        ${UI.chapa(x.codigo)}
+        <span class="cn">${UI.esc(x.nombre)}${x.tamano === 'F' ? ' (Fam.)' : ''}
+          <small>Mesa ${UI.esc(x.mesa)}${x.cant > 1 ? ` · ${x.unidad + 1}/${x.cant}` : ''}${x.notas ? ` · ${UI.esc(x.notas)}` : ''}</small></span>
+        <span class="cmin">${x.minutos} min <span class="ahora">Hacer ahora</span></span>
+      </button>`).join('') || '<div class="vacio-msg">Nada más en cola</div>';
+  }
+
+  $('#uno-grande').addEventListener('click', e => {
+    const b = e.target.closest('[data-uno]');
+    if (!b) return;
+    const s = colaOrdenada()[0];
+    if (!s) return;
+    if (b.dataset.uno === 'listo') {
+      Store.marcarUnidad(s.pedidoId, s.uid);
+      UI.campana();
+    } else if (b.dataset.uno === 'despues') {
+      if (colaOrdenada().length < 2) return UI.toast('Es el único plato en cola');
+      Store.priorizarItem(s.pedidoId, s.uid, true);
+      UI.toast('Ese plato pasa al final de la cola');
+    } else {
+      const p = Store.pedidosCocina().find(x => x.id === s.pedidoId);
+      const it = p && p.items.find(y => y.uid === s.uid);
+      if (it) { Impresion.imprimirPlato(p, it, s.unidad); Store.marcarImpreso(p.id); }
+    }
+  });
+
+  $('#uno-lista').addEventListener('click', e => {
+    const b = e.target.closest('.cola-item');
+    if (!b) return;
+    const x = colaOrdenada().find(y => y.clave === b.dataset.clave);
+    if (!x) return;
+    Store.priorizarItem(x.pedidoId, x.uid);
+    UI.toast(`Ahora va el ${x.codigo} · ${x.nombre}`, 'ok');
+  });
+
   function pintar() {
+    const enUno = vista() === 'uno';
+    $('#vista-uno').hidden = !enUno;
+    $('#columnas').hidden = enUno;
+    document.querySelectorAll('.orden-solo').forEach(el => { el.hidden = !enUno; });
+    if (enUno) pintarUno();
+
     const pedidos = Store.pedidosCocina();
     ['nuevo', 'preparando', 'listo'].forEach(estado => {
       const lista = pedidos.filter(p => p.estado === estado);
@@ -124,6 +218,8 @@
   // ── Controles de la barra ────────────────────────────────────────────────
   function pintarBarra() {
     const c = Store.config();
+    $('#vista').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === vista()));
+    $('#orden').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.o === orden()));
     $('#modo').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.m === c.modoImpresion));
     $('#formato').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.f === formato()));
     if (!capturando) {
@@ -134,6 +230,22 @@
     $('#columnas').style.setProperty('--zoom', c.letraCocina);
     $('#imprimir-ya').style.display = c.modoImpresion === 'auto' ? 'none' : '';
   }
+
+  $('#vista').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (b) Store.setConfig({ vistaCocina: b.dataset.v });
+  });
+
+  $('#orden').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    Store.setConfig({ ordenCocina: b.dataset.o });
+    UI.toast({
+      llegada: 'La cola sigue el orden en que llegaron los pedidos',
+      rapido: 'Primero los platos más rápidos de preparar',
+      demorado: 'Primero los que más demoran'
+    }[b.dataset.o]);
+  });
 
   $('#modo').addEventListener('click', e => {
     const b = e.target.closest('button');

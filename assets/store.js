@@ -33,7 +33,9 @@ const Store = (() => {
       teclaImpresion: 'p',        // tecla que dispara la impresión en cocina
       formatoImpresion: 'comanda',// 'comanda' (un papel por pedido) | 'plato'
       sonido: true,
-      letraCocina: 1             // multiplicador del tamaño de letra en cocina
+      letraCocina: 1,            // multiplicador del tamaño de letra en cocina
+      vistaCocina: 'tablero',    // 'tablero' | 'uno' (plato por plato)
+      ordenCocina: 'llegada'     // 'llegada' | 'rapido' | 'demorado'
     }
   });
 
@@ -106,6 +108,19 @@ const Store = (() => {
     const lista = [];
     for (let i = 1; i <= n; i++) lista.push(String(i));
     return lista.concat(['Llevar', 'Delivery', 'Barra']);
+  }
+
+  /* El mozo no ve Delivery: esos pedidos los toma la caja. */
+  const SOLO_CAJA = ['Delivery'];
+  function mesasMozo() {
+    return mesas().filter(m => !SOLO_CAJA.includes(m));
+  }
+
+  function minutosPlato(codigo) {
+    const p = plato(codigo);
+    if (!p) return 10;
+    if (p.min) return p.min;
+    return MINUTOS_CATEGORIA[p.cat] || 10;
   }
 
   /* Las numeradas van primero y en orden; después las de nombre. */
@@ -252,6 +267,8 @@ const Store = (() => {
       tamano: i.tamano || 'R',
       notas: i.notas || '',
       bar: !!i.bar,
+      prio: 0,               // la cocina lo usa para adelantar o postergar
+      hechas: listo ? i.cant : 0,   // unidades ya despachadas de esta línea
       listo
     };
   }
@@ -263,7 +280,9 @@ const Store = (() => {
       p.estado = estado;
       if (estado === 'preparando' && !p.inicio) p.inicio = Date.now();
       if (estado === 'listo') p.listoEn = Date.now();
-      if (estado === 'listo' || estado === 'servido') p.items.forEach(i => (i.listo = true));
+      if (estado === 'listo' || estado === 'servido') {
+        p.items.forEach(i => { i.listo = true; i.hechas = i.cant; });
+      }
     });
   }
 
@@ -272,8 +291,28 @@ const Store = (() => {
       const p = s.pedidos.find(x => x.id === pedidoId);
       if (!p) return;
       const i = p.items.find(y => y.uid === uid);
-      if (i) i.listo = listo;
+      if (i) { i.listo = listo; i.hechas = listo ? i.cant : 0; }
       if (p.estado === 'nuevo' && listo) { p.estado = 'preparando'; p.inicio = Date.now(); }
+    });
+  }
+
+  /* Despacha UNA unidad de la línea. Un "3 × chaufa" se marca tres veces,
+     porque el cocinero los saca de a uno. */
+  function marcarUnidad(pedidoId, uid) {
+    mutar(s => {
+      const p = s.pedidos.find(x => x.id === pedidoId);
+      if (!p) return;
+      const i = p.items.find(y => y.uid === uid);
+      if (!i) return;
+      i.hechas = Math.min(i.cant, (i.hechas || 0) + 1);
+      i.listo = i.hechas >= i.cant;
+      if (p.estado === 'nuevo') { p.estado = 'preparando'; p.inicio = Date.now(); }
+      // Si ya salió todo lo que cocina, la comanda pasa a "listo".
+      const deCocina = p.items.filter(x => !x.bar);
+      if (deCocina.length && deCocina.every(x => x.listo)) {
+        p.estado = 'listo';
+        p.listoEn = Date.now();
+      }
     });
   }
 
@@ -308,6 +347,47 @@ const Store = (() => {
     return pedidosActivos()
       .filter(p => p.origen !== 'caja' && ['nuevo', 'preparando', 'listo'].includes(p.estado))
       .sort((a, b) => a.creado - b.creado);
+  }
+
+  /* La cola vista plato por plato: cada unidad por separado, no por comanda.
+     Un "3 × chaufa" se abre en tres platos, porque el cocinero los saca de
+     a uno. */
+  function platosPendientes() {
+    const cola = [];
+    pedidosCocina().forEach(p => {
+      p.items.forEach(i => {
+        if (i.bar || i.listo) return;
+        for (let u = i.hechas || 0; u < i.cant; u++) {
+          cola.push({
+            clave: `${p.id}|${i.uid}|${u}`,
+            pedidoId: p.id, uid: i.uid, unidad: u,
+            num: p.num, mesa: p.mesa, mozo: p.mozo, creado: p.creado,
+            estado: p.estado,
+            codigo: i.codigo, nombre: i.nombre, tamano: i.tamano,
+            notas: i.notas, cant: i.cant,
+            prio: i.prio || 0,
+            minutos: minutosPlato(i.codigo)
+          });
+        }
+      });
+    });
+    return cola;
+  }
+
+  /* Adelantar un plato (el más fácil, el que ya casi sale) o mandarlo al
+     final de la cola. */
+  function priorizarItem(pedidoId, uid, alFinal = false) {
+    mutar(s => {
+      const activos = s.pedidos
+        .filter(p => p.estado !== 'anulado' && !p.pagado && p.origen !== 'caja')
+        .flatMap(p => p.items.filter(i => !i.listo && !i.bar));
+      if (!activos.length) return;
+      const prios = activos.map(i => i.prio || 0);
+      const nueva = alFinal ? Math.max(...prios) + 1 : Math.min(...prios) - 1;
+      const p = s.pedidos.find(x => x.id === pedidoId);
+      const i = p && p.items.find(y => y.uid === uid);
+      if (i) i.prio = nueva;
+    });
   }
 
   // ── Cuentas por mesa ─────────────────────────────────────────────────────
@@ -438,13 +518,84 @@ const Store = (() => {
   return {
     on: cb => { oyentes.add(cb); return () => oyentes.delete(cb); },
     estado: leer, hoy, avisar,
-    carta, plato, editarPlato, mesas, ordenMesa,
+    carta, plato, editarPlato, mesas, mesasMozo, ordenMesa, minutosPlato,
+    platosPendientes, priorizarItem,
     grupos, grupoDe, mesasDe, claveCuenta, unirMesas, separarMesas, nombreCuenta, mesaCorta,
-    pedidoNuevo, agregarItem, estadoPedido, marcarItem, anularPedido, quitarItem, marcarImpreso,
+    pedidoNuevo, agregarItem, estadoPedido, marcarItem, marcarUnidad,
+    anularPedido, quitarItem, marcarImpreso,
     pedidosActivos, pedidosCocina,
     cuentas, cuentaDe, lineasDe, precioItem, cobrar, ventasDia, resumenDia,
     config, setConfig, cerrarDia, borrarTodo
   };
+})();
+
+/* ── Búsqueda de platos ─────────────────────────────────────────────────────
+   El mozo escribe rápido y no siempre igual que la carta: "tipacay" por
+   "Tipakay", "arros" por "arroz", sin tildes. Se normalizan las dos partes
+   antes de comparar, guardando el mapa de posiciones para poder resaltar
+   sobre el nombre original.                                                */
+const Texto = (() => {
+  const EQUIV = { k: 'c', z: 's', v: 'b' };
+
+  function conMapa(texto) {
+    const s = String(texto);
+    let norm = '';
+    const mapa = [];
+    for (let i = 0; i < s.length; i++) {
+      let c = s[i].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (!c) continue;                       // era solo una tilde
+      c = c[0];
+      if (EQUIV[c]) c = EQUIV[c];
+      norm += c;
+      mapa.push(i);
+    }
+    return { norm, mapa };
+  }
+
+  const normalizar = t => conMapa(t).norm;
+
+  /* ¿Están todas las palabras escritas dentro del texto? Devuelve además
+     dónde caen, en posiciones del texto original. */
+  function coincide(texto, consulta) {
+    const palabras = normalizar(consulta).split(' ').filter(Boolean);
+    if (!palabras.length) return { ok: true, tramos: [] };
+    const { norm, mapa } = conMapa(texto);
+    const tramos = [];
+    for (const p of palabras) {
+      const i = norm.indexOf(p);
+      if (i === -1) return { ok: false, tramos: [] };
+      tramos.push([mapa[i], mapa[i + p.length - 1] + 1]);
+    }
+    return { ok: true, tramos };
+  }
+
+  /* Devuelve el nombre con <mark> sobre lo que coincidió. */
+  function resaltar(texto, consulta) {
+    const { ok, tramos } = coincide(texto, consulta);
+    if (!ok || !tramos.length) return UI.esc(texto);
+    const unidos = [];
+    tramos.slice().sort((a, b) => a[0] - b[0]).forEach(t => {
+      const u = unidos[unidos.length - 1];
+      if (u && t[0] <= u[1]) u[1] = Math.max(u[1], t[1]);
+      else unidos.push(t.slice());
+    });
+    let html = '', pos = 0;
+    unidos.forEach(([a, b]) => {
+      html += UI.esc(texto.slice(pos, a)) + '<mark>' + UI.esc(texto.slice(a, b)) + '</mark>';
+      pos = b;
+    });
+    return html + UI.esc(texto.slice(pos));
+  }
+
+  /* Solo dígitos busca por código; lo demás, por nombre. */
+  function filtrarCarta(lista, consulta) {
+    const q = String(consulta || '').trim();
+    if (!q) return lista;
+    if (/^\d+$/.test(q)) return lista.filter(p => String(p.c).startsWith(q));
+    return lista.filter(p => coincide(p.n, q).ok);
+  }
+
+  return { normalizar, coincide, resaltar, filtrarCarta };
 })();
 
 // ── Utilidades compartidas ─────────────────────────────────────────────────

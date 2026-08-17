@@ -19,6 +19,22 @@
 <div class="cocina">
 
   <div class="cocina-barra">
+    <div class="modo-toggle" id="vista">
+      <button type="button" data-v="tablero">Tablero</button>
+      <button type="button" data-v="uno">Uno por uno</button>
+    </div>
+
+    <span class="sep"></span>
+
+    <span class="eyebrow orden-solo">Hacer primero</span>
+    <div class="modo-toggle orden-solo" id="orden">
+      <button type="button" data-o="llegada">El que llegó antes</button>
+      <button type="button" data-o="rapido">El más fácil</button>
+      <button type="button" data-o="demorado">El más demorado</button>
+    </div>
+
+    <span class="sep"></span>
+
     <span class="eyebrow">Impresión</span>
     <div class="modo-toggle" id="modo">
       <button type="button" data-m="manual">Manual</button>
@@ -49,7 +65,16 @@
     <button class="btn chico fantasma" id="pantalla">Pantalla completa</button>
   </div>
 
-  <div class="columnas" id="columnas">
+  <!-- Vista plato por plato: el siguiente en grande, la cola al costado -->
+  <div class="uno" id="vista-uno" hidden>
+    <section class="uno-grande" id="uno-grande"></section>
+    <aside class="uno-cola">
+      <div class="col-cab"><h2>En cola</h2><span class="conteo" id="uno-conteo">0</span></div>
+      <div class="uno-lista" id="uno-lista"></div>
+    </aside>
+  </div>
+
+  <div class="columnas" id="columnas"
     <section class="col" data-col="nuevo">
       <div class="col-cab"><h2>Entran</h2><span class="conteo" id="c-nuevo">0</span></div>
       <div class="col-cuerpo" id="col-nuevo"></div>

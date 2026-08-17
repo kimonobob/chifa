@@ -82,11 +82,11 @@
       </div>
     </div>
 
-    <!-- Rueda deslizable de códigos -->
+    <!-- Rueda deslizable de códigos + acceso a la lista completa -->
     <div class="rueda-caja">
       <div class="ayuda">
         <span class="eyebrow">Desliza para buscar</span>
-        <input id="buscar" type="search" placeholder="…o escribe el nombre">
+        <button class="btn chico ver-lista" id="ver-lista">Ver lista de platos</button>
       </div>
       <div class="rueda" id="rueda" tabindex="0" aria-label="Rueda de códigos"></div>
       <div class="rueda-guia" aria-hidden="true"></div>
@@ -152,6 +152,19 @@
     </div>
   </aside>
 </main>
+
+<!-- Lista completa de la carta, con buscador que filtra mientras escribes -->
+<div class="lista-fondo" id="lista-fondo" hidden>
+  <div class="lista-caja">
+    <header class="lista-cab">
+      <input id="lista-buscar" type="search" autocomplete="off" autocorrect="off" spellcheck="false"
+             placeholder="Escribe el plato o el número…" aria-label="Buscar plato">
+      <button class="btn" id="lista-cerrar">Cerrar</button>
+    </header>
+    <div class="lista-cats" id="lista-cats"></div>
+    <div class="lista-cuerpo" id="lista-cuerpo"></div>
+  </div>
+</div>
 
 <script src="assets/data.js"></script>
 <script src="assets/store.js"></script>

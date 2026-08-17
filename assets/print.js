@@ -71,10 +71,14 @@ const Impresion = (() => {
     </div>`;
   }
 
-  /* Una sola comanda por platillo (algunas cocinas trabajan así: un papel
-     por plato, se va pegando en la barra de despacho). */
-  function comandaPorPlato(p) {
-    return p.items.filter(i => !i.bar).map(i => `<div class="ticket">
+  /* Un papel por platillo: el código enorme, para pegarlo en la barra de
+     despacho. `unidad` numera la unidad dentro de la línea (plato 2 de 3). */
+  function ticketPlato(p, i, unidad) {
+    const varias = i.cant > 1;
+    const cabeza = unidad != null && varias
+      ? `${unidad + 1} de ${i.cant}`
+      : (varias ? `${i.cant} unidades` : '1 plato');
+    return `<div class="ticket">
       <div class="t-centro">
         <div class="t-mesa">MESA ${UI.esc(p.mesa)}</div>
         <div class="t-sub">Pedido N° ${p.num} &middot; ${UI.horaSeg(p.creado)}</div>
@@ -82,12 +86,20 @@ const Impresion = (() => {
       ${linea()}
       <div class="t-centro">
         <div style="font-size:44px;font-weight:700;line-height:1">${String(i.codigo).padStart(2, '0')}</div>
-        <div class="t-nom" style="font-size:15px">${i.cant} &times; ${UI.esc(i.nombre)}${i.tamano === 'F' ? ' [FAM]' : ''}</div>
+        <div class="t-nom" style="font-size:15px">${UI.esc(i.nombre)}${i.tamano === 'F' ? ' [FAM]' : ''}</div>
+        <div class="t-sub">${cabeza}</div>
         ${i.notas ? `<div class="t-nota" style="font-size:13px">${UI.esc(i.notas)}</div>` : ''}
       </div>
       ${linea()}
       <div class="t-pie">Mozo: ${UI.esc(p.mozo)}</div>
-    </div>`).join('');
+    </div>`;
+  }
+
+  /* Toda la comanda, pero con un papel por cada unidad de cada plato. */
+  function comandaPorPlato(p) {
+    return p.items.filter(i => !i.bar)
+      .map(i => Array.from({ length: i.cant }, (_, u) => ticketPlato(p, i, u)).join(''))
+      .join('');
   }
 
   /* ── Precuenta: lo que el cliente pide antes de pagar ───────────────────── */
@@ -187,7 +199,11 @@ const Impresion = (() => {
 
   return {
     imprimir,
-    comanda, comandaPorPlato, precuenta, boleta, cierre,
+    comanda, comandaPorPlato, ticketPlato, precuenta, boleta, cierre,
+    /* Un solo plato de la cola: lo que usa la vista "uno por uno". */
+    imprimirPlato(p, item, unidad) {
+      imprimir(ticketPlato(p, item, unidad));
+    },
     imprimirComanda(p, opts) {
       const html = comanda(p, opts);
       if (!html) return false;

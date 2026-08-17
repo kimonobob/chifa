@@ -176,6 +176,15 @@ const CARTA_BASE = [
   { c: 128, n: 'Té helado 500 ml',            p: 6,  cat: 'bebidas', bar: true }
 ];
 
+/* Minutos aproximados que toma preparar cada categoría. Con esto la cocina
+   puede ordenar la cola del plato más rápido al más demorado. Ajústalos al
+   ritmo real de tu cocina. */
+const MINUTOS_CATEGORIA = {
+  sopas: 8, entradas: 6, tallarines: 9, res: 10, aves: 9,
+  chancho: 12, chaufas: 7, mariscos: 12, especiales: 10,
+  combinados: 14, postres: 4, bebidas: 1
+};
+
 /* Notas rápidas que el mozo toca en lugar de escribir. */
 const NOTAS_RAPIDAS = [
   'Sin cebolla', 'Sin kion', 'Sin sillao', 'Sin picante', 'Bien picante',
