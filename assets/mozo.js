@@ -224,7 +224,7 @@
     st.vista = 'pedido';
     $('#vista-salon').hidden = true;
     $('#vista-pedido').hidden = false;
-    setBuf('');
+    limpiarCodigo();
     setCant(1);
     limpiarNotas();
     pintarCabecera();
@@ -337,8 +337,22 @@
     return mejor ? Number(mejor.dataset.c) : null;
   }
 
+  /* La rueda solo impone su código cuando la está moviendo el mozo.
+     Al centrar un código, el navegador anima el desplazamiento y sigue
+     lanzando eventos de scroll un rato después; sin esta marca, esa animación
+     podía volver a escribir el código justo después de que se limpió al
+     agregar el plato. */
+  let ruedaUsuario = false, tUsuario = null;
+  function laMueveElMozo() {
+    ruedaUsuario = true;
+    clearTimeout(tUsuario);
+    tUsuario = setTimeout(() => { ruedaUsuario = false; }, 1000);
+  }
+  ['pointerdown', 'touchstart', 'wheel', 'keydown'].forEach(ev =>
+    rueda.addEventListener(ev, laMueveElMozo, { passive: true }));
+
   rueda.addEventListener('scroll', () => {
-    if (bloqueoScroll) return;
+    if (bloqueoScroll || !ruedaUsuario) return;
     clearTimeout(tScroll);
     tScroll = setTimeout(() => {
       const c = codigoEnCentro();
@@ -351,6 +365,20 @@
       }
     }, 110);
   });
+
+  /* Deja el lector en blanco de forma definitiva: corta la animación de
+     centrado y el scroll pendiente, para que nada reescriba el código. */
+  function limpiarCodigo() {
+    clearTimeout(tScroll);
+    clearTimeout(centrar._t);
+    clearTimeout(tUsuario);
+    bloqueoScroll = false;
+    ruedaUsuario = false;
+    st.buf = '';
+    st.tamano = 'R';
+    pintarLector();
+    marcarCentro();
+  }
 
   /* Arrastre con mouse: en pantalla táctil el scroll nativo ya funciona. */
   let arrastre = null;
@@ -404,7 +432,7 @@
     const b = e.target.closest('button');
     if (!b) return;
     const k = b.dataset.k;
-    if (k === 'C') setBuf('');
+    if (k === 'C') limpiarCodigo();
     else if (k === '⌫') setBuf(st.buf.slice(0, -1));
     else if (k === 'add') agregar();
     else digito(k);
@@ -447,6 +475,7 @@
 
   // ── Acciones sobre el código ─────────────────────────────────────────────
   function setBuf(v, conCentro = true) {
+    clearTimeout(tScroll);          // que un scroll pendiente no pise esto
     st.buf = String(v).replace(/\D/g, '').slice(0, 3).replace(/^0+(?=\d)/, '');
     const p = platoActual();
     if (!p || !p.pf) st.tamano = 'R';
@@ -488,6 +517,7 @@
 
   // ── Borrador del pedido ──────────────────────────────────────────────────
   function agregar() {
+    if (!st.buf) return;            // nada marcado: sin ruido
     if (!st.mesa) return UI.toast('Elige la mesa primero', 'error');
     const p = platoActual();
     if (!p) return UI.toast('Ese código no está en la carta', 'error');
@@ -504,7 +534,7 @@
 
     guardarBorradores();
     UI.toast(`${st.cant} × ${p.n}${st.tamano === 'F' ? ' familiar' : ''}`, 'ok');
-    setBuf('');
+    limpiarCodigo();                // el lector queda en blanco para el siguiente
     setCant(1);
     limpiarNotas();
     pintarPedido();
@@ -622,8 +652,12 @@
     if (e.key >= '0' && e.key <= '9') { digito(e.key); e.preventDefault(); return; }
     switch (e.key) {
       case 'Backspace': setBuf(st.buf.slice(0, -1)); e.preventDefault(); break;
-      case 'Escape':    setBuf(''); limpiarNotas(); setCant(1); break;
-      case 'Enter':     e.ctrlKey ? enviar() : agregar(); e.preventDefault(); break;
+      case 'Escape':    limpiarCodigo(); limpiarNotas(); setCant(1); break;
+      case 'Enter':
+        e.preventDefault();
+        if (e.repeat) break;        // tecla mantenida: no repetir el plato
+        e.ctrlKey ? enviar() : agregar();
+        break;
       case 'ArrowRight': mover(1); e.preventDefault(); break;
       case 'ArrowLeft':  mover(-1); e.preventDefault(); break;
       case 'ArrowUp':    setCant(st.cant + 1); e.preventDefault(); break;
