@@ -164,6 +164,128 @@
   };
   $('#codigo-rapido').addEventListener('keydown', e => { if (e.key === 'Enter') $('#add-codigo').click(); });
 
+  // ── Pedido para llevar ───────────────────────────────────────────────────
+  /* Se arma igual que el del mozo —eligiendo de la carta— y sale a cocina,
+     no a la cuenta de caja: es comida que hay que cocinar. */
+  const dlgLlevar = $('#dlg-llevar');
+  const llevar = { items: [], mesa: null, cat: 'todas' };
+
+  function abrirLlevar() {
+    llevar.items = [];
+    llevar.mesa = Store.nuevaMesaLlevar();
+    llevar.cat = 'todas';
+    $('#llevar-mesa').textContent = llevar.mesa;
+    $('#llevar-buscar').value = '';
+    pintarLlevarCats();
+    pintarLlevarCarta();
+    pintarLlevarPedido();
+    dlgLlevar.showModal();
+  }
+
+  function pintarLlevarCats() {
+    const cats = CATEGORIAS.filter(c => Store.carta().some(p => p.cat === c.id));
+    $('#llevar-cats').innerHTML =
+      `<button type="button" class="cat-chip ${llevar.cat === 'todas' ? 'on' : ''}" data-cat="todas">Todas</button>` +
+      cats.map(c => `<button type="button" class="cat-chip ${llevar.cat === c.id ? 'on' : ''}" data-cat="${c.id}">${UI.esc(c.nombre)}</button>`).join('');
+  }
+
+  function pintarLlevarCarta() {
+    const q = $('#llevar-buscar').value;
+    let lista = Store.carta().filter(p => !p.out);
+    if (llevar.cat !== 'todas') lista = lista.filter(p => p.cat === llevar.cat);
+    lista = Texto.filtrarCarta(lista, q);
+
+    $('#llevar-resultados').innerHTML = lista.map(p => `
+      <button type="button" class="lista-item" data-c="${p.c}">
+        ${UI.chapa(p.c, p.bar ? 'bar' : '')}
+        <span class="li-nom">${Texto.resaltar(p.n, q)}${p.d ? `<em>${UI.esc(p.d)}</em>` : ''}</span>
+        <span class="li-pre">${UI.soles(p.p)}</span>
+      </button>`).join('') ||
+      `<div class="lista-nada"><b>Nada con “${UI.esc(q)}”</b>Prueba con menos letras.</div>`;
+  }
+
+  function pintarLlevarPedido() {
+    const n = llevar.items.reduce((t, i) => t + i.cant, 0);
+    $('#llevar-conteo').textContent = n;
+    $('#llevar-lineas').innerHTML = llevar.items.map((i, idx) => `
+      <div class="llevar-linea" data-i="${idx}">
+        ${UI.chapa(i.codigo, i.bar ? 'bar' : '')}
+        <span class="ln"><b>${UI.esc(i.nombre)}</b>
+          <input data-nota="${idx}" value="${UI.esc(i.notas)}" placeholder="Nota para cocina…"></span>
+        <button type="button" class="menos" data-menos="${idx}" aria-label="Menos uno">−</button>
+        <span class="cn">${i.cant}</span>
+        <button type="button" class="mas" data-mas="${idx}" aria-label="Más uno">+</button>
+      </div>`).join('') ||
+      '<div class="vacio-msg">Toca los platos de la izquierda para armar el pedido.</div>';
+
+    const total = llevar.items.reduce((t, i) => t + i.precio * i.cant, 0);
+    $('#llevar-total').textContent = UI.soles(total);
+    $('#llevar-enviar').disabled = !llevar.items.length;
+  }
+
+  function llevarAgregar(codigo) {
+    const p = Store.plato(codigo);
+    if (!p) return;
+    const ex = llevar.items.find(i => i.codigo === p.c && !i.notas);
+    if (ex) ex.cant += 1;
+    else llevar.items.push({
+      codigo: p.c, nombre: p.n, precio: p.p, precioF: p.pf || null,
+      cant: 1, tamano: 'R', notas: '', bar: !!p.bar, detalle: p.d || ''
+    });
+    pintarLlevarPedido();
+  }
+
+  $('#btn-llevar').onclick = abrirLlevar;
+  $('#llevar-cancelar').onclick = () => dlgLlevar.close();
+  $('#llevar-buscar').oninput = pintarLlevarCarta;
+
+  $('#llevar-cats').addEventListener('click', e => {
+    const b = e.target.closest('.cat-chip');
+    if (!b) return;
+    llevar.cat = b.dataset.cat;
+    pintarLlevarCats();
+    pintarLlevarCarta();
+  });
+
+  $('#llevar-resultados').addEventListener('click', e => {
+    const b = e.target.closest('.lista-item');
+    if (b) llevarAgregar(Number(b.dataset.c));
+  });
+
+  $('#llevar-lineas').addEventListener('click', e => {
+    const mas = e.target.closest('[data-mas]');
+    const menos = e.target.closest('[data-menos]');
+    if (mas) { llevar.items[Number(mas.dataset.mas)].cant += 1; pintarLlevarPedido(); }
+    if (menos) {
+      const i = Number(menos.dataset.menos);
+      llevar.items[i].cant -= 1;
+      if (llevar.items[i].cant <= 0) llevar.items.splice(i, 1);
+      pintarLlevarPedido();
+    }
+  });
+
+  /* La nota se guarda mientras se escribe, sin repintar: repintar le quitaría
+     el foco al cajero a media palabra. */
+  $('#llevar-lineas').addEventListener('input', e => {
+    const n = e.target.closest('[data-nota]');
+    if (n) llevar.items[Number(n.dataset.nota)].notas = n.value;
+  });
+
+  $('#llevar-enviar').onclick = () => {
+    if (!llevar.items.length) return;
+    const p = Store.pedidoNuevo({
+      mesa: llevar.mesa,
+      mozo: Store.config().caja,
+      items: llevar.items,
+      origen: 'mozo'            // 'mozo' para que entre a la cola de cocina
+    });
+    let impresa = false;
+    if (Store.config().imprimirAlEnviar) impresa = Impresion.imprimirComanda(p);
+    UI.toast(`${llevar.mesa} · pedido N° ${p.num}${impresa ? ' · comanda impresa' : ' a cocina'}`, 'ok');
+    dlgLlevar.close();
+    seleccionar(llevar.mesa);   // queda abierta en caja, lista para cobrar
+  };
+
   // ── Columna 3: cobro ─────────────────────────────────────────────────────
   const BILLETES = [10, 20, 50, 100, 200];
 
@@ -353,6 +475,18 @@
 
         <hr style="border:0;border-top:1px solid var(--linea);margin:22px 0">
 
+        <p class="eyebrow" style="margin:0 0 10px">Comandas de cocina</p>
+        <button class="btn ${c.imprimirAlEnviar ? 'lacado' : 'fantasma'}" id="cfg-imprimir">
+          ${c.imprimirAlEnviar ? 'Se imprime al enviar el pedido' : 'No se imprime sola'}
+        </button>
+        <p style="margin:8px 0 0;color:var(--txt-dim);font-size:.86rem;max-width:52ch">
+          Con esto activado, la comanda sale por la impresora en cuanto el mozo
+          manda el pedido, sin depender de que la pantalla de cocina esté abierta.
+          Así trabaja el chifa hoy.
+        </p>
+
+        <hr style="border:0;border-top:1px solid var(--linea);margin:22px 0">
+
         <p class="eyebrow" style="margin:0 0 10px">Carta · precios y disponibilidad</p>
         <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
           <input id="buscar-carta" placeholder="Buscar plato o código" style="flex:1;min-width:180px">
@@ -377,6 +511,14 @@
       $('#abrir-mesa').dataset.listo = '';
       UI.toast('Ajustes guardados', 'ok');
       pintarTodo();
+    };
+
+    $('#cfg-imprimir').onclick = () => {
+      Store.setConfig({ imprimirAlEnviar: !Store.config().imprimirAlEnviar });
+      UI.toast(Store.config().imprimirAlEnviar
+        ? 'La comanda se imprimirá al enviar el pedido'
+        : 'La comanda ya no se imprime sola', 'ok');
+      pintarAjustes();
     };
 
     $('#buscar-carta').oninput = pintarEditorCarta;

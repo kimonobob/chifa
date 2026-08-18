@@ -207,10 +207,6 @@ a:hover { color: var(--oro-claro); }
 .divisor .linea.i { background: linear-gradient(90deg, rgba(232,180,74,.7), rgba(232,180,74,.1)); }
 .divisor .linea.d { background: linear-gradient(90deg, rgba(232,180,74,.1), rgba(232,180,74,.7)); }
 .divisor .rombo { width: 11px; height: 11px; border: 2px solid var(--oro); transform: rotate(45deg); flex: 0 0 auto; }
-.bajada {
-  margin: 0; font-size: clamp(12px, calc(var(--esc) * 1.5), 22px); font-weight: 400;
-  line-height: 1.55; color: rgba(246,229,207,.9); max-width: 640px; text-wrap: pretty;
-}
 
 /* ── Las tres pantallas ──────────────────────────────────────────────────── */
 .opciones {
@@ -300,7 +296,6 @@ a:hover { color: var(--oro-claro); }
     padding: clamp(6px, 1.4vh, 18px) clamp(14px, 5vw, 26px) clamp(4px, 1vh, 12px) clamp(34px, 9vw, 60px);
   }
   .filete .linea { width: clamp(16px, 6vw, 40px); }
-  .bajada br { display: none; }
 
   /* Tarjetas en fila: entran las tres sin empujar nada fuera */
   .opciones {
@@ -329,7 +324,7 @@ a:hover { color: var(--oro-claro); }
 
 /* ══ Pantallas bajitas (portátil chico, móvil acostado) ═══════════════════ */
 @media (max-height: 620px) {
-  .bajada, .divisor { display: none; }
+  .divisor { display: none; }
   .filete { margin-bottom: 4px; }
   .farol { display: none; }
 }

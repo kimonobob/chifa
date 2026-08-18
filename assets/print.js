@@ -86,8 +86,8 @@ const Impresion = (() => {
       </div>
       ${linea()}
       <div class="t-centro">
-        <div style="font-size:44px;font-weight:700;line-height:1">${String(i.codigo).padStart(2, '0')}</div>
-        <div class="t-nom" style="font-size:15px">${UI.esc(i.nombre)}${i.tamano === 'F' ? ' [FAM]' : ''}</div>
+        <div style="font-size:62px;font-weight:700;line-height:1">${String(i.codigo).padStart(2, '0')}</div>
+        <div class="t-nom" style="font-size:22px">${UI.esc(i.nombre)}${i.tamano === 'F' ? ' [FAM]' : ''}</div>
         <div class="t-sub">${cabeza}</div>
         ${i.detalle ? `<div class="t-nota" style="font-size:12px;font-weight:400">${UI.esc(i.detalle)}</div>` : ''}
         ${i.notas ? `<div class="t-nota" style="font-size:13px">${UI.esc(i.notas)}</div>` : ''}

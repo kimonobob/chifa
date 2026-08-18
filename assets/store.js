@@ -32,7 +32,11 @@ const Store = (() => {
       direccion: '',
       ruc: '',
       moneda: 'S/',
-      modoImpresion: 'manual',    // 'manual' | 'auto'
+      /* Así trabaja el chifa hoy: no hay pantalla en cocina, la comanda se
+         imprime en cuanto el mozo manda el pedido. La pantalla de cocina
+         queda disponible por si algún día se instala. */
+      imprimirAlEnviar: true,
+      modoImpresion: 'auto',      // 'manual' | 'auto'
       teclaImpresion: 'p',        // tecla que dispara la impresión en cocina
       formatoImpresion: 'comanda',// 'comanda' (un papel por pedido) | 'plato'
       sonido: true,
@@ -113,10 +117,19 @@ const Store = (() => {
     return lista.concat(['Llevar', 'Delivery', 'Barra']);
   }
 
-  /* El mozo no ve Delivery: esos pedidos los toma la caja. */
-  const SOLO_CAJA = ['Delivery'];
+  /* El mozo solo ve el salón y "Llevar". Delivery y Barra los maneja la caja. */
+  const SOLO_CAJA = ['Delivery', 'Barra'];
   function mesasMozo() {
     return mesas().filter(m => !SOLO_CAJA.includes(m));
+  }
+
+  /* Cada pedido para llevar va con su propio número, para que dos que salen
+     a la vez no terminen en la misma cuenta. */
+  function nuevaMesaLlevar() {
+    const usadas = new Set(pedidosActivos().filter(p => !p.pagado).map(p => p.mesa));
+    let n = 1;
+    while (usadas.has(`Llevar ${n}`)) n++;
+    return `Llevar ${n}`;
   }
 
   function minutosPlato(codigo) {
@@ -574,7 +587,7 @@ const Store = (() => {
   return {
     on: cb => { oyentes.add(cb); return () => oyentes.delete(cb); },
     estado: leer, hoy, avisar,
-    carta, plato, editarPlato, mesas, mesasMozo, ordenMesa, minutosPlato,
+    carta, plato, editarPlato, mesas, mesasMozo, nuevaMesaLlevar, ordenMesa, minutosPlato,
     platosPendientes, platosEntregados, priorizarItem, desmarcarUnidad,
     grupos, grupoDe, mesasDe, claveCuenta, unirMesas, separarMesas, nombreCuenta, mesaCorta,
     pedidoNuevo, agregarItem, estadoPedido, marcarItem, marcarUnidad,

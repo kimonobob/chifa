@@ -647,7 +647,16 @@
     const p = Store.pedidoNuevo({ mesa: st.mesa, mozo: Store.config().mozo, items });
     st.borradores[st.mesa] = [];
     guardarBorradores();
-    UI.toast(`Pedido N° ${p.num} enviado a cocina`, 'ok');
+
+    /* La cocina del chifa trabaja con papel, no con pantalla: la comanda
+       sale acá mismo, al mandar el pedido. Queda marcada como impresa, así
+       que si además hay pantalla de cocina abierta, no la duplica. */
+    let impresa = false;
+    if (Store.config().imprimirAlEnviar) {
+      impresa = Impresion.imprimirComanda(p);
+    }
+    UI.toast(`Pedido N° ${p.num}${impresa ? ' · comanda impresa' : ' enviado a cocina'}`, 'ok');
+
     pintarPedido();
     pintarCabecera();
   }
@@ -746,9 +755,11 @@
     const sinNada = !st.mesa || !items.length;
     $('#enviar').disabled = sinNada;
     $('#enviar-pad').disabled = sinNada;
+    const etq = Store.config().imprimirAlEnviar ? 'Enviar e imprimir' : 'Enviar a cocina';
+    $('#enviar').textContent = etq;
     $('#enviar-pad').textContent = sinNada
-      ? 'Enviar a cocina'
-      : `Enviar a cocina · ${platos} plato${platos === 1 ? '' : 's'} · ${UI.soles(totalBorrador)}`;
+      ? etq
+      : `${etq} · ${platos} plato${platos === 1 ? '' : 's'} · ${UI.soles(totalBorrador)}`;
   }
 
   // ── Atajos de teclado ────────────────────────────────────────────────────

@@ -19,23 +19,18 @@ el diseño hecho en Claude Design—. Lo que no cambió es la **disposición** d
 las pantallas de trabajo: los tamaños y las distancias están medidos para una
 tablet en la mano y para un monitor de cocina que se lee a dos metros.
 
-## Dónde va el dragón
+## El dragón
 
-Copia la ilustración exactamente acá:
-
-```
-assets/dragon.png
-```
-
-O sea, en la carpeta `assets` que está junto a `index.html`, con ese nombre.
-Aparece sola al recargar; no hay que tocar ningún archivo.
-
-Ocupa el 40 % derecho de la portada, que ya está reservado: el texto nunca se
-mete en esa franja. Mientras el archivo no esté, ahí se ve un sello 龍 tenue
-para que el hueco no quede vacío. En celular el dragón pasa al fondo, atenuado,
+Va en `assets/dragon.png`, y ocupa el 40 % derecho de la portada. Esa franja
+está reservada: el texto nunca se mete ahí. En celular pasa al fondo, atenuado,
 para no estorbar la lectura.
 
-Formato: PNG con fondo transparente. Vertical le queda mejor que apaisado.
+Si lo cambias por otro dibujo, **déjalo liviano**. El original venía a 2000×2000
+y pesaba 1,7 MB; recortado, reducido a 1100 px y con paleta de 256 colores
+quedó en 103 KB —94 % menos— sin diferencia apreciable a simple vista. Una
+portada que tarda en abrir en la tablet es una portada que estorba.
+
+Si no está el archivo, en su lugar sale un sello 龍 y el resto se ve igual.
 
 ## Cómo abrirlo
 
@@ -187,6 +182,25 @@ no hay teclado físico, se ocultan solos.
 
 ## 2 · Cocina
 
+### Cómo trabaja hoy el chifa: con papel
+
+La cocina no mira pantalla, mira comandas impresas. Por eso **la comanda sale
+por la impresora en cuanto el mozo manda el pedido**, sin que nadie tenga que
+tener abierta la pantalla de cocina.
+
+En el ticket, la **mesa y el plato van en letra grande** — la mesa a 46 px y
+enmarcada, el código a 30 px, el nombre a 20 px — para leerlos de un vistazo
+con el papel sobre la barra y las manos ocupadas.
+
+Se apaga o se enciende en *Caja › Ajustes › Comandas de cocina*. Si lo apagas,
+el botón del mozo vuelve a decir «Enviar a cocina» en vez de «Enviar e
+imprimir».
+
+La pantalla de cocina sigue acá por si algún día la instalan, y no duplica
+nada: la comanda ya viene marcada como impresa.
+
+### La pantalla, si algún día se usa
+
 Tiene dos vistas, se cambia con un toque en la barra de arriba.
 
 ### Uno por uno
@@ -271,8 +285,14 @@ El ticket sale formateado para **ticketera térmica de 80 mm**.
 - **Cuentas** — todas las mesas abiertas con su total. Las que todavía tienen
   platos en cocina salen marcadas, para no cobrar algo que no salió. Las mesas
   unidas aparecen como una sola cuenta (`3+4`).
+- **Pedido para llevar** — arma el pedido eligiendo de la carta, igual que el
+  mozo, con buscador, cantidades y notas para cocina. Al enviarlo **sí va a
+  cocina** y se imprime su comanda. Cada uno toma su propio número (`Llevar 1`,
+  `Llevar 2`…) para que dos que salen a la vez no se mezclen en una cuenta, y
+  queda abierto en caja listo para cobrar.
 - **Agregar a la cuenta** — grilla de gaseosas, cervezas y jugos de un toque,
-  o el código directo. Estas ventas van a la cuenta pero **no** a cocina.
+  o el código directo. Estas ventas van a la cuenta pero **no** a cocina,
+  porque no hay nada que cocinar.
 - **Cobro** — descuento en soles o en porcentaje, medio de pago (Efectivo,
   Yape, Plin, Tarjeta, Transferencia, Cortesía), botones de billetes y cálculo
   de vuelto. No deja cerrar si el efectivo recibido no alcanza.

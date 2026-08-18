@@ -30,6 +30,9 @@
         <option value="">Abrir mesa…</option>
       </select>
     </header>
+    <div class="fila-llevar">
+      <button class="btn lacado bloque" id="btn-llevar">Pedido para llevar</button>
+    </div>
     <div class="cuerpo" id="lista-cuentas"></div>
     <div class="kpis" style="border-top:1px solid var(--linea)">
       <div class="kpi"><div class="k">Mesas abiertas</div><div class="v" id="k-abiertas">0</div></div>
@@ -111,6 +114,37 @@
     </div>
   </section>
 </main>
+
+<!-- Pedido para llevar: se arma como el del mozo y se va a cocina -->
+<dialog id="dlg-llevar">
+  <header>
+    <h2>Pedido para llevar</h2>
+    <span class="eyebrow" id="llevar-mesa"></span>
+  </header>
+
+  <div class="llevar-cuerpo">
+    <div class="llevar-carta">
+      <input id="llevar-buscar" type="search" autocomplete="off" spellcheck="false"
+             placeholder="Escribe el plato o el número…" aria-label="Buscar plato">
+      <div class="lista-cats" id="llevar-cats"></div>
+      <div class="llevar-resultados" id="llevar-resultados"></div>
+    </div>
+
+    <div class="llevar-pedido">
+      <div class="col-cab"><h2>Se lleva</h2><span class="conteo" id="llevar-conteo">0</span></div>
+      <div class="llevar-lineas" id="llevar-lineas"></div>
+      <div class="llevar-total">
+        <span class="etq">Total</span>
+        <span class="val dinero" id="llevar-total">S/ 0.00</span>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <button class="btn fantasma" id="llevar-cancelar">Cancelar</button>
+    <button class="btn lacado grande" id="llevar-enviar" disabled>Enviar a cocina</button>
+  </footer>
+</dialog>
 
 <script src="assets/data.js"></script>
 <script src="assets/store.js"></script>

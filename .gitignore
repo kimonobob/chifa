@@ -12,6 +12,10 @@ $RECYCLE.BIN/
 .idea/
 *.swp
 
+# El original del dragón, sin optimizar (1.7 MB). Se queda en el disco por si
+# hay que rehacer la versión liviana; al repo sube solo assets/dragon.png.
+assets/dragon-original.png
+
 # Node (por si más adelante se le agrega el servidor)
 node_modules/
 npm-debug.log*
