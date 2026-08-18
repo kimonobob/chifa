@@ -50,9 +50,14 @@
     const todas = Store.mesasMozo();        // sin Delivery: eso lo toma la caja
     const numeradas = todas.filter(m => !isNaN(Number(m)));
     const zonas = todas.filter(m => isNaN(Number(m)));
-    const columnas = [1, 2, 4, 5];        // la columna 3 del grid es el pasillo
 
-    $('#mesas-plano').innerHTML = numeradas.map((m, i) => {
+    /* Cada mesa va donde está en el salón de verdad (PLANO_MESAS). Si se
+       agregan mesas nuevas por Ajustes, se acomodan solas al final. */
+    const sitios = new Map(PLANO_MESAS.map(x => [x.m, x]));
+    const filaLibre = PLANO_MESAS.reduce((n, x) => Math.max(n, x.fil), 0) + 1;
+    let sueltas = 0;
+
+    $('#mesas-plano').innerHTML = numeradas.map(m => {
       const c = cuentas.find(x => x.mesas.includes(m));
       const g = Store.grupoDe(m);
       const esPrincipal = !g || g.principal === m;
@@ -72,8 +77,14 @@
         tiempo = `<span class="mp-tiempo" data-desde="${c.desde}">${UI.transcurrido(c.desde)}</span>`;
       }
 
+      let sitio = sitios.get(m);
+      if (!sitio) {
+        const orden = sueltas++;
+        sitio = { col: [1, 2, 4][orden % 3], fil: filaLibre + Math.floor(orden / 3) };
+      }
+
       return `<button type="button" class="${clases.join(' ')}" data-mesa="${UI.esc(m)}"
-        style="grid-column:${columnas[i % 4]};grid-row:${Math.floor(i / 4) + 1}"
+        style="grid-column:${sitio.col};grid-row:${sitio.fil}"
         aria-label="Mesa ${UI.esc(m)}${c ? `, ocupada, ${UI.soles(c.total)}` : ', libre'}">
         ${(enCocina || lista) ? '<span class="mp-punto"></span>' : ''}
         <span class="mp-num">${UI.esc(m)}</span>${info}${tiempo}
@@ -285,10 +296,15 @@
       cat.textContent = (c ? c.nombre : '') + (p.bar ? ' · barra' : '');
     }
 
+    // Qué trae el plato (los combos lo necesitan)
+    $('#detalle-plato').textContent = (p && !p.out && p.d) ? p.d : '';
+
+    /* El selector de tamaño solo aparece si el plato de verdad tiene dos. */
     const puedeF = !!(p && p.pf);
+    $('#tamanos').hidden = !puedeF;
+    if (!puedeF) st.tamano = 'R';
     $('#tamanos').querySelectorAll('button').forEach(b => {
       b.classList.toggle('on', b.dataset.t === st.tamano);
-      if (b.dataset.t === 'F') b.disabled = !puedeF;
     });
     $('#cant').textContent = st.cant;
     $('#keypad .agregar').disabled = !p || p.out || !st.mesa;
@@ -550,7 +566,7 @@
 
     const fila = p => `<button type="button" class="lista-item ${p.out ? 'agotado' : ''}" data-c="${p.c}">
       ${UI.chapa(p.c, p.bar ? 'bar' : '')}
-      <span class="li-nom">${Texto.resaltar(p.n, q)}</span>
+      <span class="li-nom">${Texto.resaltar(p.n, q)}${p.d ? `<em>${UI.esc(p.d)}</em>` : ''}</span>
       <span class="li-pre">${p.out ? 'Agotado' : UI.soles(p.p)}
         ${!p.out && p.pf ? `<small>familiar ${p.pf.toFixed(2)}</small>` : ''}</span>
     </button>`;
@@ -613,7 +629,8 @@
     if (igual) igual.cant += st.cant;
     else items.push({
       codigo: p.c, nombre: p.n, precio: p.p, precioF: p.pf || null,
-      cant: st.cant, tamano: st.tamano, notas, bar: !!p.bar
+      cant: st.cant, tamano: st.tamano, notas, bar: !!p.bar,
+      detalle: p.d || ''
     });
 
     guardarBorradores();

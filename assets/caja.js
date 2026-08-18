@@ -108,15 +108,33 @@
   });
 
   // ── Agregar rápido ───────────────────────────────────────────────────────
+  /* Todo lo que sale de barra, sea la categoría que sea. Antes esto miraba
+     una categoría fija y, al cambiar la carta, la grilla quedó vacía. */
+  let catBarra = 'todas';
+
   function pintarBebidas() {
-    $('#grid-bebidas').innerHTML = Store.carta()
-      .filter(p => p.cat === 'bebidas' && !p.out)
-      .map(p => `<button type="button" class="bebida-btn" data-c="${p.c}">
-        <span class="bn">${String(p.c).padStart(2, '0')}</span>
+    const deBarra = Store.carta().filter(p => p.bar && !p.out);
+    const cats = CATEGORIAS.filter(c => deBarra.some(p => p.cat === c.id));
+
+    $('#barra-cats').innerHTML =
+      `<button type="button" class="cat-chip ${catBarra === 'todas' ? 'on' : ''}" data-cat="todas">Todas</button>` +
+      cats.map(c => `<button type="button" class="cat-chip ${catBarra === c.id ? 'on' : ''}" data-cat="${c.id}">${UI.esc(c.nombre)}</button>`).join('');
+
+    const lista = catBarra === 'todas' ? deBarra : deBarra.filter(p => p.cat === catBarra);
+    $('#grid-bebidas').innerHTML = lista.map(p => `
+      <button type="button" class="bebida-btn" data-c="${p.c}" title="${UI.esc(p.n)}">
+        <span class="bn">${p.c}</span>
         <span class="bt">${UI.esc(p.n)}</span>
         <span class="bp">${p.p.toFixed(2)}</span>
-      </button>`).join('');
+      </button>`).join('') || '<div class="vacio-msg">Nada en esta categoría</div>';
   }
+
+  $('#barra-cats').addEventListener('click', e => {
+    const b = e.target.closest('.cat-chip');
+    if (!b) return;
+    catBarra = b.dataset.cat;
+    pintarBebidas();
+  });
 
   function agregar(codigo, cant = 1) {
     if (!st.mesa) return UI.toast('Elige o abre una mesa primero', 'error');
@@ -124,7 +142,7 @@
     if (!p) return UI.toast(`El código ${codigo} no está en la carta`, 'error');
     Store.agregarItem(st.mesa, {
       codigo: p.c, nombre: p.n, precio: p.p, precioF: p.pf || null,
-      cant, tamano: 'R', notas: '', bar: !!p.bar
+      cant, tamano: 'R', notas: '', bar: !!p.bar, detalle: p.d || ''
     });
     UI.toast(`${cant} × ${p.n}`, 'ok');
     pintarTodo();
@@ -393,15 +411,14 @@
     const lista = Store.carta().filter(p => !f || p.n.toLowerCase().includes(f) || String(p.c) === f);
     $('#editor-carta').innerHTML = `<table class="tabla" style="font-size:.88rem">
       <thead><tr><th>Cód</th><th>Nombre</th><th class="n">Regular</th><th class="n">Familiar</th><th></th></tr></thead>
-      <tbody>${lista.slice(0, 140).map(p => `<tr data-c="${p.c}" style="${p.out ? 'opacity:.5' : ''}">
+      <tbody>${lista.map(p => `<tr data-c="${p.c}" style="${p.out ? 'opacity:.5' : ''}">
         <td>${UI.chapa(p.c, p.bar ? 'bar' : '')}</td>
         <td><input data-f="n" value="${UI.esc(p.n)}" style="width:100%;border-color:transparent;background:transparent"></td>
         <td class="n"><input data-f="p" type="number" step="0.5" min="0" value="${p.p}" style="width:74px;text-align:right;border-color:transparent;background:transparent"></td>
         <td class="n"><input data-f="pf" type="number" step="0.5" min="0" value="${p.pf || ''}" placeholder="—" style="width:74px;text-align:right;border-color:transparent;background:transparent"></td>
         <td class="n"><button class="btn chico fantasma" data-out="${p.c}">${p.out ? 'Agotado' : 'Hay'}</button></td>
       </tr>`).join('')}</tbody>
-    </table>
-    ${lista.length > 140 ? '<p style="color:var(--txt-dim);font-size:.84rem">Mostrando los primeros 140. Usa el buscador.</p>' : ''}`;
+    </table>`;
 
     $('#editor-carta').querySelectorAll('input').forEach(inp => {
       inp.onchange = () => {

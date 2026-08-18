@@ -253,10 +253,12 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
 .rotulo.puerta { grid-area: puerta; padding: 6px; }
 .rotulo.barra  { grid-area: barra; writing-mode: vertical-rl; letter-spacing: .3em; }
 
+/* Dos hileras con el pasillo al medio, como el salón real.
+   La 3.ª columna es el pasillo; las mesas se colocan desde PLANO_MESAS. */
 .mesas-plano {
   grid-area: mesas; display: grid; gap: 10px;
-  grid-template-columns: 1fr 1fr 28px 1fr 1fr;   /* la 3.ª columna es el pasillo */
-  grid-auto-rows: minmax(86px, 1fr);
+  grid-template-columns: 1fr 1fr 34px 1fr;
+  grid-auto-rows: minmax(80px, 1fr);
 }
 .mesa-plano {
   position: relative; display: flex; flex-direction: column;
@@ -413,6 +415,20 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
 .resuelto .meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .resuelto .precio { font-family: var(--mono); font-size: 1.18rem; font-weight: 600; }
 .resuelto .cat { font-size: .78rem; letter-spacing: .14em; text-transform: uppercase; color: var(--txt-dim); }
+.detalle-plato {
+  margin: 6px 0 0; font-size: .88rem; line-height: 1.3; color: var(--txt-dim);
+  border-left: 3px solid var(--laton); padding-left: 9px;
+}
+.detalle-plato:empty { display: none; }
+.lista-item .li-nom em {
+  display: block; font-style: normal; font-size: .8rem; color: var(--txt-dim);
+  line-height: 1.25; margin-top: 2px;
+}
+.comanda-items .detalle, .sig-detalle {
+  display: block; margin-top: 3px; font-size: .9em; color: var(--txt-dim);
+  border-left: 2px solid var(--linea); padding-left: 7px;
+}
+.sig-detalle { font-size: 1.1rem; margin: 0 0 12px; border-left-width: 4px; padding-left: 12px; }
 
 /* Tamaño R / F */
 .tamanos { display: flex; gap: 0; border: 1px solid var(--linea); border-radius: var(--r); overflow: hidden; }
@@ -803,6 +819,8 @@ body[data-app="mozo"] .comanda-items .nota, body[data-app="caja"] .comanda-items
 .tabla tbody tr:hover { background: var(--panel-2); }
 
 .agregar-rapido { padding: 12px 14px; border-top: 1px solid var(--linea); background: var(--panel-2); }
+.barra-cats { display: flex; gap: 5px; overflow-x: auto; padding-bottom: 8px; scrollbar-width: thin; }
+.barra-cats .cat-chip { padding: 5px 11px; font-size: .78rem; }
 .grid-bebidas { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; max-height: 190px; overflow-y: auto; }
 .bebida-btn {
   padding: 7px 8px; background: var(--panel); border: 1px solid var(--linea);
@@ -887,7 +905,7 @@ dialog > footer { padding: 12px 18px; border-top: 1px solid var(--linea); displa
   .lector { gap: 14px; padding: 14px 16px; }
   .keypad button { height: 58px; font-size: 1.7rem; }
   .cant-fila button { width: 48px; height: 48px; }
-  .mesas-plano { grid-template-columns: 1fr 1fr 20px 1fr 1fr; gap: 8px; grid-auto-rows: minmax(78px, 1fr); }
+  .mesas-plano { grid-template-columns: 1fr 1fr 22px 1fr; gap: 8px; grid-auto-rows: minmax(72px, 1fr); }
   .mp-num { font-size: 2.1rem; }
   .caja { grid-template-columns: 220px 1fr; }
   .caja-col.cobro-col { grid-column: span 2; border-left: 0; border-top: 1px solid var(--linea); }
@@ -911,7 +929,7 @@ dialog > footer { padding: 12px 18px; border-top: 1px solid var(--linea); displa
 /* Teléfono: recién acá se apilan el teclado y las notas */
 @media (max-width: 620px) {
   .taller { grid-template-columns: 1fr; gap: 14px; }
-  .mesas-plano { grid-template-columns: 1fr 1fr 1fr; gap: 7px; }
+  .mesas-plano { grid-template-columns: 1fr 1fr 12px 1fr; gap: 6px; }
   .plano { grid-template-columns: 1fr 30px; padding: 8px; }
   .slot { width: 44px; height: 64px; font-size: 3rem; }
   .lector { grid-template-columns: 1fr; }

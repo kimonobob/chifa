@@ -1,7 +1,9 @@
-# Chifaa · sistema de salón, cocina y caja
+# Chifa Cuatro Dragones · sistema de salón, cocina y caja
 
 Tres pantallas conectadas para un chifa que canta la carta por número.
-Todo funciona en el navegador, sin instalar nada y sin internet.
+Trae cargada la carta real —los 154 códigos impresos más las bebidas— y el
+plano del salón. Todo funciona en el navegador, sin instalar nada y sin
+internet.
 
 | Pantalla | Archivo | Para quién |
 |---|---|---|
@@ -36,8 +38,31 @@ una mesa, la de **pedido**.
 ### Croquis del salón
 
 Lo primero que se ve, antes de elegir ningún plato: el plano del local con las
-15 mesas, cada una con **su número al centro**, más Cocina, Barra y Entrada de
-referencia. Llevar y Barra van en una fila aparte.
+10 mesas en su sitio real, cada una con **su número al centro**, más Cocina,
+Barra y Entrada de referencia. Llevar y Barra van en una fila aparte.
+
+```
+        ┌─────────────────────────┐
+        │  COCINA                 │
+        │        ┌──┐   │   ┌──┐  │
+        │        │ 8│   │   │ 7│  │
+        │        ├──┤   │   ├──┤  │
+        │        │ 9│   │   │ 6│  │  B
+        │        └──┘   │   ├──┤  │  A
+        │  ┌──┐         │   │ 5│  │  R
+        │  │10│         │   ├──┤  │  R
+        │  └──┘         │   │ 4│  │  A
+        │               │   ├──┤  │
+        │               │   │ 3│  │
+        │  ┌──┐         │   ├──┤  │
+        │  │ 1│         │   │ 2│  │
+        │  └──┘         │   └──┘  │
+        │  ENTRADA   pasillo      │
+        └─────────────────────────┘
+```
+
+Si mueves una mesa en el local, cambia su `col`/`fil` en `PLANO_MESAS`, dentro
+de [assets/data.js](assets/data.js).
 
 > **Delivery no aparece en el mozo**: esos pedidos los toma la caja, que puede
 > abrir tanto Delivery como Llevar desde su selector de mesa.
@@ -238,23 +263,31 @@ El ticket sale formateado para **ticketera térmica de 80 mm**.
 
 ## Editar la carta
 
-La carta vive en [assets/data.js](assets/data.js) y ya trae 128 códigos con
-precios de referencia:
+La carta vive en [assets/data.js](assets/data.js). Los códigos **1 al 154 son
+los mismos que están impresos en la carta**. Las bebidas no van numeradas en la
+carta, así que se les asignó códigos del 200 en adelante para que el mozo y la
+caja también puedan marcarlas.
 
-| Códigos | Categoría |
-|---|---|
-| 1–9 | Sopas |
-| 10–19 | Entradas y frituras |
-| 20–29 | Tallarines |
-| 30–39 | Res |
-| 40–49 | Aves |
-| 50–59 | Chancho y pato |
-| **60–69** | **Chaufas** (el 60 es chaufa de pollo) |
-| 70–79 | Mariscos |
-| **80–89** | **Especiales** (el 81 es tipakay de pollo) |
-| 90–97 | Combinados y guarniciones |
-| 98–100 | Postres |
-| 101–128 | Bebidas |
+| Códigos | Categoría | |
+|---|---|---|
+| 1–11 | Para empezar | |
+| 12–24 | Sopas | |
+| 25–35 | Tallarines | |
+| 36–54 | Especiales Cuatro Dragones | |
+| 55–60 | Chaufas fusión | |
+| 61–73 | Chaufas clásicos y aeropuertos | el **61** es chaufa de pollo |
+| 74–127 | Fusión de sabores orientales | el **80** es pollo ti pa kay |
+| 128–143 | Platos a la plancha | |
+| 144–148 | Combos Cuatro Dragones | traen anotado qué incluyen |
+| 149–154 | Guarniciones | |
+| 201–205 | Infusiones | barra |
+| 210–229 | Jarras y limonadas | barra · jarra y media jarra por separado |
+| 240–257 | Gaseosas y aguas | barra |
+| 270–283 | Cervezas | barra |
+| 290–297 | Cócteles y vinos | barra |
+
+Los combos guardan **qué traen**, y eso aparece en la lista del mozo, en la
+pantalla de cocina y en la comanda impresa — que es donde de verdad hace falta.
 
 Para cambios del día a día usa **Caja › Ajustes › Carta** — se guarda en el
 navegador y no toca el archivo. Para dejar tu carta real como base definitiva,

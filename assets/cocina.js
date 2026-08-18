@@ -25,6 +25,7 @@
         <span class="cx">${i.cant}&times;</span>
         ${UI.chapa(i.codigo, i.bar ? 'bar' : '')}
         <span class="nom">${UI.esc(i.nombre)}${i.tamano === 'F' ? '<span class="tam">FAM</span>' : ''}
+          ${i.detalle ? `<span class="detalle">${UI.esc(i.detalle)}</span>` : ''}
           ${i.notas ? `<span class="nota">${UI.esc(i.notas)}</span>` : ''}
         </span>
       </li>`;
@@ -97,6 +98,7 @@
         <span><span class="et">Toma unos</span><b>${s.minutos} min</b></span>
         <span><span class="et">Pedido</span><b>N° ${s.num}</b></span>
       </div>
+      ${s.detalle ? `<p class="sig-detalle">${UI.esc(s.detalle)}</p>` : ''}
       ${s.notas ? `<div class="sig-nota">${UI.esc(s.notas)}</div>` : ''}
       <div class="sig-acciones">
         <button class="btn jade listo" data-uno="listo">Plato listo</button>
@@ -403,7 +405,8 @@
   function pintarAgotados() {
     const f = $('#buscar-agotado').value.trim().toLowerCase();
     const lista = Store.carta().filter(p => !f || p.n.toLowerCase().includes(f) || String(p.c) === f);
-    $('#lista-agotados').innerHTML = lista.slice(0, 60).map(p => `
+    // Sin recortes: con 219 líneas, cortar en 60 dejaba media carta inalcanzable.
+    $('#lista-agotados').innerHTML = lista.map(p => `
       <button type="button" class="bebida-btn" data-c="${p.c}" style="display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;${p.out ? 'opacity:.55' : ''}">
         ${UI.chapa(p.c)}
         <span style="text-align:left">${UI.esc(p.n)}</span>

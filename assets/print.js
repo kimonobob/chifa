@@ -47,6 +47,7 @@ const Impresion = (() => {
         <td class="t-cod">${String(i.codigo).padStart(2, '0')}</td>
         <td class="t-cant">${i.cant}x</td>
         <td class="t-nom">${UI.esc(i.nombre)}${i.tamano === 'F' ? ' [FAM]' : ''}
+          ${i.detalle ? `<div class="t-nota" style="font-weight:400">${UI.esc(i.detalle)}</div>` : ''}
           ${i.notas ? `<div class="t-nota">${UI.esc(i.notas)}</div>` : ''}
         </td>
       </tr>`).join('');
@@ -88,6 +89,7 @@ const Impresion = (() => {
         <div style="font-size:44px;font-weight:700;line-height:1">${String(i.codigo).padStart(2, '0')}</div>
         <div class="t-nom" style="font-size:15px">${UI.esc(i.nombre)}${i.tamano === 'F' ? ' [FAM]' : ''}</div>
         <div class="t-sub">${cabeza}</div>
+        ${i.detalle ? `<div class="t-nota" style="font-size:12px;font-weight:400">${UI.esc(i.detalle)}</div>` : ''}
         ${i.notas ? `<div class="t-nota" style="font-size:13px">${UI.esc(i.notas)}</div>` : ''}
       </div>
       ${linea()}

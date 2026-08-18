@@ -3,7 +3,10 @@
    así el mozo, la cocina y la caja ven lo mismo al instante.               */
 
 const Store = (() => {
-  const KEY = 'chifa:estado:v1';
+  /* v2: entró la carta real de Cuatro Dragones. Los datos de la v1 tenían
+     otros códigos y otros precios, así que se parte de cero en vez de
+     mezclarlos y sacar cuentas equivocadas. */
+  const KEY = 'chifa:estado:v2';
   const canal = 'BroadcastChannel' in window ? new BroadcastChannel('chifa') : null;
   const oyentes = new Set();
   let cache = null;
@@ -24,9 +27,9 @@ const Store = (() => {
     config: {
       mozo: 'Mozo 1',
       caja: 'Caja 1',
-      mesas: 15,
-      negocio: 'Chifa Chifaa',
-      direccion: 'Av. Principal 123',
+      mesas: 10,
+      negocio: 'Chifa Cuatro Dragones',
+      direccion: '',
       ruc: '',
       moneda: 'S/',
       modoImpresion: 'manual',    // 'manual' | 'auto'
@@ -266,6 +269,7 @@ const Store = (() => {
       cant: i.cant,
       tamano: i.tamano || 'R',
       notas: i.notas || '',
+      detalle: i.detalle || '',      // qué trae el plato, para la cocina
       bar: !!i.bar,
       prio: 0,               // la cocina lo usa para adelantar o postergar
       hechas: listo ? i.cant : 0,   // unidades ya despachadas de esta línea
@@ -376,7 +380,7 @@ const Store = (() => {
             num: p.num, mesa: p.mesa, mozo: p.mozo, creado: p.creado,
             estado: p.estado,
             codigo: i.codigo, nombre: i.nombre, tamano: i.tamano,
-            notas: i.notas, cant: i.cant,
+            notas: i.notas, detalle: i.detalle || '', cant: i.cant,
             prio: i.prio || 0,
             minutos: minutosPlato(i.codigo)
           });
@@ -589,7 +593,7 @@ const Store = (() => {
 const Texto = (() => {
   const EQUIV = { k: 'c', z: 's', v: 'b' };
 
-  function conMapa(texto) {
+  function conMapa(texto, sinEspacios) {
     const s = String(texto);
     let norm = '';
     const mapa = [];
@@ -597,6 +601,7 @@ const Texto = (() => {
       let c = s[i].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
       if (!c) continue;                       // era solo una tilde
       c = c[0];
+      if (sinEspacios && /\s/.test(c)) continue;
       if (EQUIV[c]) c = EQUIV[c];
       norm += c;
       mapa.push(i);
@@ -611,14 +616,27 @@ const Texto = (() => {
   function coincide(texto, consulta) {
     const palabras = normalizar(consulta).split(' ').filter(Boolean);
     if (!palabras.length) return { ok: true, tramos: [] };
+    // 1) Cada palabra escrita tiene que aparecer en el nombre.
     const { norm, mapa } = conMapa(texto);
     const tramos = [];
+    let todas = true;
     for (const p of palabras) {
       const i = norm.indexOf(p);
-      if (i === -1) return { ok: false, tramos: [] };
+      if (i === -1) { todas = false; break; }
       tramos.push([mapa[i], mapa[i + p.length - 1] + 1]);
     }
-    return { ok: true, tramos };
+    if (todas) return { ok: true, tramos };
+
+    /* 2) Todo junto, ignorando los espacios: la carta dice "Pollo Ti Pa Kay"
+       pero el mozo escribe "tipacay" de corrido. */
+    const seguido = palabras.join('');
+    const pegado = conMapa(texto, true);
+    const j = pegado.norm.indexOf(seguido);
+    if (j === -1) return { ok: false, tramos: [] };
+    return {
+      ok: true,
+      tramos: [[pegado.mapa[j], pegado.mapa[j + seguido.length - 1] + 1]]
+    };
   }
 
   /* Devuelve el nombre con <mark> sobre lo que coincidió. */
