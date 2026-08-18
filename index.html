@@ -13,7 +13,7 @@
 <link rel="stylesheet" media="print" onload="this.media='all'"
       href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Noto+Serif+SC:wght@700&display=swap">
 
-<link rel="stylesheet" href="assets/portada.css">
+<link rel="stylesheet" href="assets/portada.css?v=8">
 </head>
 <body>
 
@@ -133,8 +133,8 @@
   </div>
 </div>
 
-<script src="assets/data.js"></script>
-<script src="assets/store.js"></script>
+<script src="assets/data.js?v=8"></script>
+<script src="assets/store.js?v=8"></script>
 <script>
   // ── Puerta: elegir el local ───────────────────────────────────────────────
   function pintarSedes() {
@@ -153,19 +153,47 @@
       </div>`).join('');
   }
 
-  document.getElementById('sedes').addEventListener('submit', e => {
-    e.preventDefault();
-    const f = e.target.closest('.sede');
-    const clave = f.querySelector('input').value;
+  /* Entrar al local. Va en try/catch a propósito: si algo falla —por
+     ejemplo, un navegador que se quedó con una versión vieja en caché— el
+     mozo tiene que VER el motivo, no quedarse mirando un botón que no hace
+     nada. */
+  function entrar(f) {
     const err = f.querySelector('.sede-error');
-    if (!Store.codigoValido(f.dataset.id, clave)) {
+    const campo = f.querySelector('input');
+    try {
+      if (!Store.codigoValido(f.dataset.id, campo.value)) {
+        err.textContent = 'Ese código no es';
+        err.hidden = false;
+        campo.select();
+        return;
+      }
+      err.hidden = true;
+      Store.entrarSede(f.dataset.id);
+      revisarPuerta();
+      if (!Store.sedeInfo()) throw new Error('no se pudo guardar el local');
+    } catch (ex) {
+      err.textContent = 'Algo falló: ' + ex.message + '. Recarga con Ctrl+F5.';
       err.hidden = false;
-      f.querySelector('input').select();
-      return;
     }
-    err.hidden = true;
-    Store.entrarSede(f.dataset.id);
-    revisarPuerta();
+  }
+
+  const zonaSedes = document.getElementById('sedes');
+  zonaSedes.addEventListener('submit', e => {
+    e.preventDefault();
+    entrar(e.target.closest('.sede'));
+  });
+  /* Por si el navegador no lanzara el submit del formulario. */
+  zonaSedes.addEventListener('click', e => {
+    const b = e.target.closest('button[type="submit"]');
+    if (!b) return;
+    e.preventDefault();
+    entrar(b.closest('.sede'));
+  });
+  zonaSedes.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.target.matches('.sede input')) {
+      e.preventDefault();
+      entrar(e.target.closest('.sede'));
+    }
   });
 
   document.getElementById('salir-sede').onclick = () => {

@@ -64,10 +64,21 @@ salón.
 
 ```
 cd c:\Users\eddy_\OneDrive\Documents\chifaa
-python -m http.server 8787
+python servir.py
 ```
 
-Y en el navegador: <http://127.0.0.1:8787/index.html>
+Y en el navegador: <http://127.0.0.1:8787>
+
+> Usa `servir.py` y no `python -m http.server`. El nuestro le dice al
+> navegador que **no guarde nada en caché**. Sin eso, al actualizar el sistema
+> el navegador puede seguir usando archivos viejos y el chifa termina
+> trabajando con una versión que ya no existe — pasa, y cuesta mucho darse
+> cuenta.
+>
+> Los archivos además llevan un número de versión (`assets/store.js?v=8`). Si
+> algún día tocas los archivos a mano, sube ese número en los cuatro `.html`
+> para que los navegadores recojan la versión nueva. Y si algo se ve raro tras
+> una actualización, recarga con **Ctrl+F5**.
 
 Abre cada pantalla en su propia pestaña o ventana. Se sincronizan al instante.
 
