@@ -188,6 +188,18 @@ La cocina no mira pantalla, mira comandas impresas. Por eso **la comanda sale
 por la impresora en cuanto el mozo manda el pedido**, sin que nadie tenga que
 tener abierta la pantalla de cocina.
 
+### Las bebidas no van a cocina
+
+Infusiones, jarras y limonadas, gaseosas y aguas, cervezas, cócteles y vinos
+**no se mandan a cocina ni se imprimen**: no hay nada que preparar. Se suman a
+la cuenta y las sirve el mozo.
+
+Da igual cómo se pidan. Si el mozo manda una ronda con dos platos y dos
+gaseosas, el sistema la parte solo: los platos salen en la comanda, las
+gaseosas se van derecho a la cuenta. Y una ronda de puras bebidas no gasta
+papel. En el panel del pedido esas líneas se ven marcadas como
+*la lleva el mozo*.
+
 En el ticket, la **mesa y el plato van en letra grande** — la mesa a 46 px y
 enmarcada, el código a 30 px, el nombre a 20 px — para leerlos de un vistazo
 con el papel sobre la barra y las manos ocupadas.
@@ -285,10 +297,13 @@ El ticket sale formateado para **ticketera térmica de 80 mm**.
 - **Cuentas** — todas las mesas abiertas con su total. Las que todavía tienen
   platos en cocina salen marcadas, para no cobrar algo que no salió. Las mesas
   unidas aparecen como una sola cuenta (`3+4`).
-- **Pedido para llevar** — arma el pedido eligiendo de la carta, igual que el
-  mozo, con buscador, cantidades y notas para cocina. Al enviarlo **sí va a
-  cocina** y se imprime su comanda. Cada uno toma su propio número (`Llevar 1`,
-  `Llevar 2`…) para que dos que salen a la vez no se mezclen en una cuenta, y
+- **Pedido para llevar** — se arma igual que en el mozo: **el código manda**
+  (se escribe el número, resuelve el plato y su precio, y se agrega con Enter),
+  y al lado están el buscador por nombre y la lista completa por categorías,
+  para cuando no se acuerdan del número. Con cantidades y notas para cocina.
+  Al enviarlo, los platos **van a cocina** y se imprime su comanda; las bebidas
+  se suman a la cuenta sin imprimirse. Cada pedido toma su propio número
+  (`Llevar 1`, `Llevar 2`…) para que dos que salen a la vez no se mezclen, y
   queda abierto en caja listo para cobrar.
 - **Agregar a la cuenta** — grilla de gaseosas, cervezas y jugos de un toque,
   o el código directo. Estas ventas van a la cuenta pero **no** a cocina,

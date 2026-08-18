@@ -124,8 +124,21 @@
 
   <div class="llevar-cuerpo">
     <div class="llevar-carta">
+      <!-- El código manda, igual que en el mozo -->
+      <div class="llevar-codigo">
+        <input id="llevar-cod" inputmode="numeric" autocomplete="off"
+               placeholder="Código" aria-label="Código del plato">
+        <div class="cant-mini">
+          <button type="button" id="llevar-menos" aria-label="Menos uno">−</button>
+          <span id="llevar-cant">1</span>
+          <button type="button" id="llevar-mas" aria-label="Más uno">+</button>
+        </div>
+        <button class="btn primario" id="llevar-add" disabled>Agregar</button>
+      </div>
+      <p class="llevar-eco" id="llevar-eco">Escribe el número del plato</p>
+
       <input id="llevar-buscar" type="search" autocomplete="off" spellcheck="false"
-             placeholder="Escribe el plato o el número…" aria-label="Buscar plato">
+             placeholder="…o búscalo por nombre" aria-label="Buscar plato">
       <div class="lista-cats" id="llevar-cats"></div>
       <div class="llevar-resultados" id="llevar-resultados"></div>
     </div>

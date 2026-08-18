@@ -227,10 +227,11 @@ const Store = (() => {
         mozo: mozo || s.config.mozo,
         origen,
         creado: Date.now(),
-        estado: origen === 'caja' ? 'servido' : 'nuevo',
+        /* 'barra' y 'caja' no pasan por cocina: nacen servidos. */
+        estado: SIN_COCINA.includes(origen) ? 'servido' : 'nuevo',
         impreso: null,
         pagado: false,
-        items: items.map(i => nuevoItem(i, origen === 'caja'))
+        items: items.map(i => nuevoItem(i, SIN_COCINA.includes(origen)))
       };
       s.pedidos.push(p);
       return p;
@@ -372,10 +373,26 @@ const Store = (() => {
     return leer().pedidos.filter(p => p.estado !== 'anulado');
   }
 
+  /* Lo que no se cocina: las ventas directas de caja y todo lo de barra. */
+  const SIN_COCINA = ['caja', 'barra'];
+
   function pedidosCocina() {
     return pedidosActivos()
-      .filter(p => p.origen !== 'caja' && ['nuevo', 'preparando', 'listo'].includes(p.estado))
+      .filter(p => !SIN_COCINA.includes(p.origen) && ['nuevo', 'preparando', 'listo'].includes(p.estado))
       .sort((a, b) => a.creado - b.creado);
+  }
+
+  /* Mandar una ronda. Los platos van a cocina; las bebidas —infusiones,
+     jarras, gaseosas, cervezas, cócteles— se suman a la cuenta y las sirve
+     el mozo, sin comanda: no hay nada que preparar.
+     Devuelve { comida, barra }: solo `comida` se imprime. */
+  function enviarRonda({ mesa, mozo, items }) {
+    const comida = items.filter(i => !i.bar);
+    const bebidas = items.filter(i => i.bar);
+    return {
+      comida: comida.length ? pedidoNuevo({ mesa, mozo, items: comida, origen: 'mozo' }) : null,
+      barra: bebidas.length ? pedidoNuevo({ mesa, mozo, items: bebidas, origen: 'barra' }) : null
+    };
   }
 
   /* La cola vista plato por plato: cada unidad por separado, no por comanda.
@@ -590,7 +607,7 @@ const Store = (() => {
     carta, plato, editarPlato, mesas, mesasMozo, nuevaMesaLlevar, ordenMesa, minutosPlato,
     platosPendientes, platosEntregados, priorizarItem, desmarcarUnidad,
     grupos, grupoDe, mesasDe, claveCuenta, unirMesas, separarMesas, nombreCuenta, mesaCorta,
-    pedidoNuevo, agregarItem, estadoPedido, marcarItem, marcarUnidad,
+    pedidoNuevo, enviarRonda, agregarItem, estadoPedido, marcarItem, marcarUnidad,
     anularPedido, quitarItem, marcarImpreso,
     pedidosActivos, pedidosCocina,
     cuentas, cuentaDe, lineasDe, precioItem, cobrar, ventasDia, resumenDia,

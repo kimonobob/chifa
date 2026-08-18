@@ -644,7 +644,11 @@
   function enviar() {
     const items = borrador();
     if (!st.mesa || !items.length) return;
-    const p = Store.pedidoNuevo({ mesa: st.mesa, mozo: Store.config().mozo, items });
+    /* Los platos van a cocina; las bebidas se suman a la cuenta y las lleva
+       el mozo, sin comanda: no hay nada que preparar. */
+    const { comida, barra } = Store.enviarRonda({
+      mesa: st.mesa, mozo: Store.config().mozo, items
+    });
     st.borradores[st.mesa] = [];
     guardarBorradores();
 
@@ -652,10 +656,17 @@
        sale acá mismo, al mandar el pedido. Queda marcada como impresa, así
        que si además hay pantalla de cocina abierta, no la duplica. */
     let impresa = false;
-    if (Store.config().imprimirAlEnviar) {
-      impresa = Impresion.imprimirComanda(p);
+    if (comida && Store.config().imprimirAlEnviar) {
+      impresa = Impresion.imprimirComanda(comida);
     }
-    UI.toast(`Pedido N° ${p.num}${impresa ? ' · comanda impresa' : ' enviado a cocina'}`, 'ok');
+
+    const partes = [];
+    if (comida) partes.push(`Pedido N° ${comida.num}${impresa ? ' · comanda impresa' : ' a cocina'}`);
+    if (barra) {
+      const n = barra.items.reduce((t, i) => t + i.cant, 0);
+      partes.push(`${n} bebida${n === 1 ? '' : 's'} a la cuenta`);
+    }
+    UI.toast(partes.join(' · '), 'ok');
 
     pintarPedido();
     pintarCabecera();
@@ -706,10 +717,12 @@
       cuenta.pedidos.slice().sort((a, b) => a.creado - b.creado).forEach(p => {
         html += `<div class="ronda-previa">
           <div class="rot">
-            <span>Pedido N° ${p.num}${grupo ? ` · mesa ${UI.esc(p.mesa)}` : ''} · ${UI.hora(p.creado)}</span>
+            <span>${p.origen === 'barra' ? 'Bebidas' : `Pedido N° ${p.num}`}${grupo ? ` · mesa ${UI.esc(p.mesa)}` : ''} · ${UI.hora(p.creado)}</span>
             <span>
-              <span class="pill ${p.estado}">${p.estado}</span>
-              <button class="btn chico fantasma" data-reimprimir="${p.id}" style="margin-left:6px">Copia</button>
+              ${p.origen === 'barra'
+                ? '<span class="pill bar">la lleva el mozo</span>'
+                : `<span class="pill ${p.estado}">${p.estado}</span>
+                   <button class="btn chico fantasma" data-reimprimir="${p.id}" style="margin-left:6px">Copia</button>`}
             </span>
           </div>
           ${p.items.map(i => `

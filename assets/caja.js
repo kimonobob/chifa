@@ -168,19 +168,77 @@
   /* Se arma igual que el del mozo —eligiendo de la carta— y sale a cocina,
      no a la cuenta de caja: es comida que hay que cocinar. */
   const dlgLlevar = $('#dlg-llevar');
-  const llevar = { items: [], mesa: null, cat: 'todas' };
+  const llevar = { items: [], mesa: null, cat: 'todas', cant: 1 };
 
   function abrirLlevar() {
     llevar.items = [];
     llevar.mesa = Store.nuevaMesaLlevar();
     llevar.cat = 'todas';
+    llevar.cant = 1;
     $('#llevar-mesa').textContent = llevar.mesa;
     $('#llevar-buscar').value = '';
+    $('#llevar-cod').value = '';
     pintarLlevarCats();
     pintarLlevarCarta();
     pintarLlevarPedido();
+    pintarLlevarCodigo();
     dlgLlevar.showModal();
+    $('#llevar-cod').focus();
   }
+
+  // ── Entrada por código, igual que el lector del mozo ─────────────────────
+  const platoLlevar = () => {
+    const v = $('#llevar-cod').value.replace(/\D/g, '');
+    return v ? Store.plato(Number(v)) : null;
+  };
+
+  function pintarLlevarCodigo() {
+    const p = platoLlevar();
+    const eco = $('#llevar-eco');
+    const escrito = $('#llevar-cod').value.replace(/\D/g, '');
+    eco.classList.remove('malo');
+
+    if (!escrito) {
+      eco.textContent = 'Escribe el número del plato';
+    } else if (!p) {
+      eco.textContent = `El código ${escrito} no está en la carta`;
+      eco.classList.add('malo');
+    } else if (p.out) {
+      eco.textContent = `${p.n} está agotado`;
+      eco.classList.add('malo');
+    } else {
+      eco.innerHTML = `<b>${UI.esc(p.n)}</b> · ${UI.soles(p.p)}` +
+        (p.bar ? ' · <span class="pill bar">bebida, no va a cocina</span>' : '');
+    }
+    $('#llevar-cant').textContent = llevar.cant;
+    $('#llevar-add').disabled = !p || !!p.out;
+  }
+
+  function setCantLlevar(v) {
+    llevar.cant = Math.min(99, Math.max(1, v));
+    pintarLlevarCodigo();
+  }
+  $('#llevar-mas').onclick = () => setCantLlevar(llevar.cant + 1);
+  $('#llevar-menos').onclick = () => setCantLlevar(llevar.cant - 1);
+
+  $('#llevar-cod').addEventListener('input', e => {
+    e.target.value = e.target.value.replace(/\D/g, '').slice(0, 3);
+    pintarLlevarCodigo();
+  });
+  $('#llevar-cod').addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    $('#llevar-add').click();
+  });
+  $('#llevar-add').onclick = () => {
+    const p = platoLlevar();
+    if (!p || p.out) return;
+    llevarAgregar(p.c, llevar.cant);
+    $('#llevar-cod').value = '';
+    llevar.cant = 1;
+    pintarLlevarCodigo();
+    $('#llevar-cod').focus();
+  };
 
   function pintarLlevarCats() {
     const cats = CATEGORIAS.filter(c => Store.carta().some(p => p.cat === c.id));
@@ -223,15 +281,16 @@
     $('#llevar-enviar').disabled = !llevar.items.length;
   }
 
-  function llevarAgregar(codigo) {
+  function llevarAgregar(codigo, cant = 1) {
     const p = Store.plato(codigo);
     if (!p) return;
     const ex = llevar.items.find(i => i.codigo === p.c && !i.notas);
-    if (ex) ex.cant += 1;
+    if (ex) ex.cant += cant;
     else llevar.items.push({
       codigo: p.c, nombre: p.n, precio: p.p, precioF: p.pf || null,
-      cant: 1, tamano: 'R', notas: '', bar: !!p.bar, detalle: p.d || ''
+      cant, tamano: 'R', notas: '', bar: !!p.bar, detalle: p.d || ''
     });
+    UI.toast(`${cant} × ${p.n}`, 'ok');
     pintarLlevarPedido();
   }
 
@@ -273,15 +332,19 @@
 
   $('#llevar-enviar').onclick = () => {
     if (!llevar.items.length) return;
-    const p = Store.pedidoNuevo({
-      mesa: llevar.mesa,
-      mozo: Store.config().caja,
-      items: llevar.items,
-      origen: 'mozo'            // 'mozo' para que entre a la cola de cocina
+    /* Misma regla que en el mozo: los platos van a cocina, las bebidas solo
+       se suman a la cuenta. */
+    const { comida, barra } = Store.enviarRonda({
+      mesa: llevar.mesa, mozo: Store.config().caja, items: llevar.items
     });
     let impresa = false;
-    if (Store.config().imprimirAlEnviar) impresa = Impresion.imprimirComanda(p);
-    UI.toast(`${llevar.mesa} · pedido N° ${p.num}${impresa ? ' · comanda impresa' : ' a cocina'}`, 'ok');
+    if (comida && Store.config().imprimirAlEnviar) impresa = Impresion.imprimirComanda(comida);
+
+    const partes = [llevar.mesa];
+    if (comida) partes.push(`N° ${comida.num}${impresa ? ' · comanda impresa' : ' a cocina'}`);
+    if (barra) partes.push(`${barra.items.reduce((t, i) => t + i.cant, 0)} bebida(s) a la cuenta`);
+    UI.toast(partes.join(' · '), 'ok');
+
     dlgLlevar.close();
     seleccionar(llevar.mesa);   // queda abierta en caja, lista para cobrar
   };

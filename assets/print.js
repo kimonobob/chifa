@@ -37,10 +37,11 @@ const Impresion = (() => {
   const linea = () => '<hr>';
 
   /* ── Comanda de cocina: solo lo que se cocina, códigos bien grandes ─────── */
+  /* Comanda de cocina: solo lo que hay que preparar. Las bebidas nunca
+     llegan acá — se suman a la cuenta y las sirve el mozo. */
   function comanda(p, { copia = false } = {}) {
     const items = p.items.filter(i => !i.bar);
-    const barra = p.items.filter(i => i.bar);
-    if (!items.length && !barra.length) return '';
+    if (!items.length) return '';
 
     const filas = arr => arr.map(i => `
       <tr>
@@ -65,8 +66,7 @@ const Impresion = (() => {
         <div class="t-sub">Mozo: ${UI.esc(p.mozo)}</div>
       </div>
       ${linea()}
-      ${items.length ? `<table>${filas(items)}</table>` : ''}
-      ${barra.length ? `${linea()}<div class="t-sub"><b>BARRA</b></div><table>${filas(barra)}</table>` : ''}
+      <table>${filas(items)}</table>
       ${linea()}
       <div class="t-pie">${items.reduce((t, i) => t + i.cant, 0)} platos &middot; impreso ${UI.horaSeg(Date.now())}</div>
     </div>`;
