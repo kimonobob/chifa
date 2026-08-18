@@ -277,7 +277,7 @@
       nom.textContent = 'Marca un código';
       nom.classList.add('libre');
       pre.textContent = '';
-      cat.textContent = 'Del 1 al 128';
+      cat.textContent = 'Del 1 al 154 · bebidas 201+';
     } else if (!p) {
       nom.textContent = 'Código sin asignar';
       nom.classList.add('libre');

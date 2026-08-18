@@ -11,7 +11,14 @@ internet.
 | Cocina | `cocina.html` | Ve las comandas e imprime |
 | Caja | `caja.html` | Cobra, vende bebidas, cierra el día |
 
-`index.html` es la portada con las tres opciones y un resumen en vivo.
+`index.html` es la portada con las tres opciones y un resumen en vivo. Lleva la
+identidad del chifa —laca roja, oro, faroles y dragón— sobre el diseño hecho en
+Claude Design; las tres pantallas de trabajo conservan su aspecto sobrio, que
+está afinado para usarse a toda velocidad en pleno servicio.
+
+> **Falta el dragón.** La portada espera la ilustración en
+> `assets/dragon.png`. Mientras no esté, muestra en su lugar un sello 龍 y todo
+> lo demás se ve igual. Copia ahí el archivo y aparece solo, sin tocar nada.
 
 ## Cómo abrirlo
 
@@ -318,6 +325,8 @@ Otras cosas a tener en cuenta:
 
 ```
 index.html          portada y resumen en vivo
+  assets/portada.css  su identidad (solo la portada)
+  assets/dragon.png   la ilustración del dragón — cópiala aquí
 mozo.html           pantalla del mozo
 cocina.html         pantalla de cocina
 caja.html           pantalla de caja

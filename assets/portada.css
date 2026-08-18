@@ -1,0 +1,294 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   PORTADA · Chifa Cuatro Dragones
+   Implementa el diseño "Chifa Cuatro Dragones.dc.html" de Claude Design.
+   Solo viste la portada: las tres pantallas de trabajo conservan su diseño,
+   que está afinado para usarse a toda velocidad en pleno servicio.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --laca:        #c01018;
+  --laca-viva:   #d8232a;
+  --oro:         #e8b44a;
+  --oro-claro:   #f7d489;
+  --crema:       #f6e5cf;
+  --crema-viva:  #fdf6ea;
+  --papel:       #fdf3e3;
+  --ambar:       #ffdca6;
+  --tinta:       #2f0306;
+
+  /* Oswald y JetBrains Mono llegan de Google Fonts cuando hay internet.
+     Detrás van fuentes del sistema, para que el chifa siga funcionando
+     con el router caído. */
+  --display: Oswald, "Bahnschrift Condensed", "Bahnschrift SemiCondensed",
+             Bahnschrift, "DIN Condensed", "Arial Narrow", sans-serif;
+  --mono:    "JetBrains Mono", "Cascadia Mono", Consolas, ui-monospace, monospace;
+  --han:     "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun,
+             "Microsoft YaHei", serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--tinta); }
+body {
+  font-family: var(--display);
+  color: var(--crema);
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--oro); text-decoration: none; }
+a:hover { color: var(--oro-claro); }
+:focus-visible { outline: 3px solid var(--oro); outline-offset: 3px; }
+
+@keyframes sway  { 0%, 100% { transform: rotate(-2.5deg); } 50% { transform: rotate(2.5deg); } }
+@keyframes float { 0%, 100% { transform: translateY(0); }   50% { transform: translateY(-14px); } }
+@keyframes brasa { 0%, 100% { opacity: .85; } 50% { opacity: 1; } }
+
+/* ── Lienzo ──────────────────────────────────────────────────────────────── */
+.salon {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+  background: radial-gradient(120% 90% at 18% 30%,
+              #8c0d12 0%, #6b0a10 38%, #4a0509 72%, #2f0306 100%);
+  display: flex;
+  flex-direction: column;
+}
+/* Trama de seda y el resplandor del wok */
+.salon::before, .salon::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+}
+.salon::before {
+  opacity: .28;
+  background-image:
+    repeating-linear-gradient( 45deg, rgba(255,190,120,.05) 0 2px, transparent 2px 22px),
+    repeating-linear-gradient(-45deg, rgba(255,190,120,.04) 0 2px, transparent 2px 22px);
+}
+.salon::after {
+  background: radial-gradient(60% 50% at 78% 45%, rgba(255,150,60,.16) 0%, transparent 70%);
+  animation: brasa 9s ease-in-out infinite;
+}
+
+/* ── Barra superior ──────────────────────────────────────────────────────── */
+.barra {
+  position: relative; z-index: 3;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 24px; padding: 14px 26px;
+  background: linear-gradient(180deg, rgba(20,1,3,.85), rgba(20,1,3,.35));
+  border-bottom: 1px solid rgba(232,180,74,.45);
+}
+.marca { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.marca b, .marca i {
+  font-family: var(--mono); font-weight: 700; font-size: 19px;
+  letter-spacing: .1em; font-style: normal;
+}
+.marca b { color: var(--papel); }
+.marca i { color: var(--oro); }
+.marca .barrita { width: 1px; height: 20px; background: rgba(232,180,74,.4); }
+.marca small {
+  font-family: var(--mono); font-size: 12px; letter-spacing: .22em;
+  color: rgba(246,229,207,.6);
+}
+.reloj {
+  display: flex; align-items: center; gap: 10px;
+  font-family: var(--mono); font-size: 13px; color: var(--oro);
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.reloj .punto {
+  width: 13px; height: 13px; border: 1.5px solid var(--oro); border-radius: 50%;
+}
+
+/* ── Esquinas de laca ────────────────────────────────────────────────────── */
+.esquina { position: absolute; pointer-events: none; z-index: 2; }
+.esquina.ai  { top: 74px; left: 18px;  width: 74px; height: 74px;
+               border-top: 3px solid rgba(232,180,74,.75); border-left: 3px solid rgba(232,180,74,.75); }
+.esquina.ai2 { top: 88px; left: 32px;  width: 34px; height: 34px;
+               border-top: 2px solid rgba(232,180,74,.5);  border-left: 2px solid rgba(232,180,74,.5); }
+.esquina.ad  { top: 74px; right: 18px; width: 74px; height: 74px;
+               border-top: 3px solid rgba(232,180,74,.75); border-right: 3px solid rgba(232,180,74,.75); }
+.esquina.ad2 { top: 88px; right: 32px; width: 34px; height: 34px;
+               border-top: 2px solid rgba(232,180,74,.5);  border-right: 2px solid rgba(232,180,74,.5); }
+.esquina.bi  { bottom: 18px; left: 18px;  width: 74px; height: 74px;
+               border-bottom: 3px solid rgba(232,180,74,.6); border-left: 3px solid rgba(232,180,74,.6); }
+.esquina.bd  { bottom: 18px; right: 18px; width: 74px; height: 74px;
+               border-bottom: 3px solid rgba(232,180,74,.6); border-right: 3px solid rgba(232,180,74,.6); }
+
+/* ── Faroles ─────────────────────────────────────────────────────────────── */
+.farol {
+  position: absolute; top: 152px; z-index: 2;
+  display: flex; flex-direction: column; align-items: center;
+  transform-origin: top center; pointer-events: none;
+}
+.farol.izq { left: 30px; animation: sway 6s   ease-in-out infinite; }
+.farol.der { right: 30px; animation: sway 7.5s ease-in-out infinite; }
+.farol .cuerda   { width: 2px; background: rgba(232,180,74,.55); }
+.farol .cuerda.b { height: 34px; background: rgba(232,180,74,.5); }
+.farol .tapa     { background: var(--oro); border-radius: 2px; }
+.farol .globo {
+  border-radius: 50% / 42%;
+  background: radial-gradient(60% 50% at 35% 30%, #f0555a, var(--laca) 60%, #8c0a10);
+  border: 1.5px solid rgba(255,214,150,.55);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--han); color: var(--ambar);
+}
+.farol.izq .cuerda { height: 52px; }
+.farol.izq .tapa   { width: 44px; height: 9px; }
+.farol.izq .globo  { width: 76px; height: 88px; font-size: 30px; box-shadow: 0 0 40px rgba(255,90,60,.45); }
+.farol.der .cuerda { height: 70px; }
+.farol.der .tapa   { width: 40px; height: 8px; }
+.farol.der .globo  { width: 68px; height: 80px; font-size: 27px; box-shadow: 0 0 36px rgba(255,90,60,.4); }
+.farol.der .cuerda.b { height: 30px; }
+
+/* ── El dragón ───────────────────────────────────────────────────────────── */
+.dragon-zona {
+  position: absolute; top: 56px; right: 1%; height: 72%; width: 42%;
+  z-index: 1; pointer-events: none;
+  display: flex; align-items: center; justify-content: center;
+}
+.dragon {
+  width: 100%; height: 100%; object-fit: contain;
+  filter: drop-shadow(0 24px 60px rgba(0,0,0,.55)) saturate(1.05);
+  animation: float 12s ease-in-out infinite;
+}
+/* Sello de respaldo: si no está la ilustración, el lado no queda vacío. */
+.dragon-sello { display: none; }
+.dragon-zona.sin-dragon .dragon-sello {
+  display: flex; align-items: center; justify-content: center;
+  width: min(60%, 420px); aspect-ratio: 1;
+  border: 3px solid rgba(232,180,74,.35); border-radius: 50%;
+  font-family: var(--han); font-size: clamp(90px, 15vw, 240px);
+  color: rgba(232,180,74,.22);
+  text-shadow: 0 0 60px rgba(255,150,60,.25);
+  animation: float 12s ease-in-out infinite;
+}
+
+/* ── Encabezado ──────────────────────────────────────────────────────────── */
+.encabezado {
+  position: relative; z-index: 2;
+  padding: 48px 24px 34px 130px; width: 56%; max-width: 56%;
+}
+.filete { display: flex; align-items: center; gap: 16px; margin-bottom: 18px; }
+.filete .linea  { width: 70px; height: 1px; }
+.filete .linea.i { background: linear-gradient(90deg, transparent, var(--oro)); }
+.filete .linea.d { background: linear-gradient(90deg, var(--oro), transparent); }
+.filete .han {
+  font-family: var(--han); font-size: 26px; letter-spacing: .14em; color: var(--oro);
+}
+.sobre-titulo {
+  font-size: clamp(28px, 3.2vw, 52px); font-weight: 600;
+  letter-spacing: .22em; color: var(--oro); line-height: 1;
+}
+.titulo-fila { display: flex; align-items: flex-end; gap: 22px; }
+.titulo-fila h1 {
+  margin: 2px 0 0; font-size: clamp(56px, 7.2vw, 118px); font-weight: 700;
+  line-height: .92; letter-spacing: .01em; color: var(--crema-viva);
+  text-shadow: 0 6px 30px rgba(0,0,0,.5);
+}
+.sello-rojo {
+  border: 2px solid var(--laca-viva); background: var(--laca);
+  padding: 10px 8px; margin-bottom: 16px;
+  font-family: var(--han); font-size: 26px; line-height: 1.15;
+  color: var(--ambar); text-align: center; flex: 0 0 auto;
+}
+.divisor { display: flex; align-items: center; gap: 14px; margin: 26px 0 22px; }
+.divisor .linea { flex: 1; height: 1px; }
+.divisor .linea.i { background: linear-gradient(90deg, rgba(232,180,74,.7), rgba(232,180,74,.1)); }
+.divisor .linea.d { background: linear-gradient(90deg, rgba(232,180,74,.1), rgba(232,180,74,.7)); }
+.divisor .rombo { width: 12px; height: 12px; border: 2px solid var(--oro); transform: rotate(45deg); }
+.bajada {
+  margin: 0; font-size: 22px; font-weight: 400; line-height: 1.65;
+  color: rgba(246,229,207,.9); max-width: 640px; text-wrap: pretty;
+}
+
+/* ── Las tres pantallas ──────────────────────────────────────────────────── */
+.opciones {
+  position: relative; z-index: 2;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 22px; padding: 0 130px 26px;
+}
+.opcion {
+  position: relative; display: block; padding: 24px 26px 22px;
+  border: 1px solid rgba(232,180,74,.7);
+  background: linear-gradient(160deg, rgba(60,4,8,.78), rgba(30,2,4,.62));
+  text-decoration: none;
+  transition: border-color .18s ease, background .18s ease, transform .18s ease;
+}
+.opcion:hover, .opcion:focus-visible {
+  border-color: var(--oro); transform: translateY(-3px);
+  background: linear-gradient(160deg, rgba(90,7,12,.85), rgba(40,3,6,.7));
+}
+.opcion .cab { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+.opcion .num {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: var(--laca); border: 1px solid rgba(255,214,150,.5);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-weight: 700; font-size: 16px; color: var(--papel);
+  flex: 0 0 auto;
+}
+.opcion .han { font-family: var(--han); font-size: 24px; color: rgba(232,180,74,.85); }
+.opcion .titulo {
+  font-size: 34px; font-weight: 700; letter-spacing: .06em;
+  color: var(--crema-viva); margin-bottom: 10px;
+}
+.opcion .desc {
+  font-size: 17px; font-weight: 400; line-height: 1.5;
+  color: rgba(246,229,207,.72); min-height: 52px; text-wrap: pretty;
+}
+.opcion .dato {
+  margin-top: 18px; padding-top: 14px;
+  border-top: 1px solid rgba(232,180,74,.3);
+  font-family: var(--mono); font-size: 14px; color: var(--oro);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Pie ─────────────────────────────────────────────────────────────────── */
+.pie {
+  position: relative; z-index: 2; margin-top: auto;
+  display: flex; align-items: center; justify-content: center; gap: 18px;
+  padding: 0 130px 40px;
+}
+.pie .linea { flex: 1; height: 1px; }
+.pie .linea.i { background: linear-gradient(90deg, transparent, rgba(232,180,74,.45)); }
+.pie .linea.d { background: linear-gradient(90deg, rgba(232,180,74,.45), transparent); }
+.pie p {
+  margin: 0; text-align: center; font-size: 17px; font-weight: 400;
+  line-height: 1.5; color: rgba(246,229,207,.7); max-width: 640px;
+}
+
+/* ── Pantallas más chicas ────────────────────────────────────────────────── */
+@media (max-width: 1200px) {
+  .encabezado { padding-left: 110px; width: 62%; max-width: 62%; }
+  .opciones, .pie { padding-left: 110px; padding-right: 110px; }
+  .opcion .titulo { font-size: 30px; }
+}
+
+@media (max-width: 980px) {
+  /* El dragón se va al fondo, como atmósfera, y el texto toma el ancho. */
+  .dragon-zona { top: auto; bottom: 0; right: -6%; height: 52%; width: 62%; opacity: .3; }
+  .encabezado { width: 100%; max-width: 100%; padding: 40px 28px 28px 108px; }
+  .opciones { grid-template-columns: 1fr 1fr; padding: 0 28px 26px 108px; }
+  .pie { padding: 0 28px 34px 108px; }
+  .bajada { font-size: 19px; }
+  .bajada br { display: none; }
+}
+
+@media (max-width: 720px) {
+  .farol, .esquina.ai2, .esquina.ad2 { display: none; }
+  .esquina.ai, .esquina.ad { width: 46px; height: 46px; }
+  .encabezado { padding: 32px 20px 24px; }
+  .opciones { grid-template-columns: 1fr; padding: 0 20px 22px; gap: 14px; }
+  .pie { padding: 0 20px 28px; }
+  .pie .linea { display: none; }
+  .titulo-fila { gap: 14px; }
+  .sello-rojo { font-size: 20px; padding: 8px 6px; }
+  .marca small { display: none; }
+  .opcion .desc { min-height: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}

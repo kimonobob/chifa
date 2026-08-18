@@ -3,72 +3,166 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Chifaa · Salón, cocina y caja</title>
+<title>Chifa Cuatro Dragones · Salón, cocina y caja</title>
 <link rel="icon" href="assets/favicon.svg">
-<link rel="stylesheet" href="assets/app.css">
+
+<!-- Las tipografías del diseño. Se cargan sin bloquear el pintado: si el
+     chifa se queda sin internet, la portada sale igual con las del sistema. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" media="print" onload="this.media='all'"
+      href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Noto+Serif+SC:wght@700&display=swap">
+
+<link rel="stylesheet" href="assets/portada.css">
 </head>
-<body data-app="portada">
+<body>
 
-<header class="top">
-  <div class="marca">Chifa<b>a</b> <span>Sistema de salón</span></div>
-  <div class="crece"></div>
-  <div class="reloj" id="reloj"></div>
-</header>
+<div class="salon">
 
-<main class="portada">
-  <p class="eyebrow" style="margin:0 0 14px">La carta se canta por número</p>
-  <h1>Un <em>60</em> y dos <em>81</em>.<br>Listo.</h1>
-  <p class="bajada">
-    Tres pantallas conectadas: el mozo dispara el número, la cocina lo ve al instante,
-    la caja cobra lo que salió. Abre cada una en su propia pestaña o en su propio equipo.
-  </p>
+  <header class="barra">
+    <div class="marca">
+      <b>CHIFA</b>
+      <i>CUATRO DRAGONES</i>
+      <span class="barrita"></span>
+      <small>SISTEMA DE SALÓN</small>
+    </div>
+    <div class="reloj">
+      <span class="punto"></span>
+      <span id="reloj">—</span>
+    </div>
+  </header>
 
-  <div class="opciones">
-    <a class="opcion" href="mozo.html">
-      <div class="num">01</div>
-      <h2>Mozo</h2>
-      <p>Escribe o desliza el código, elige mesa y manda a cocina.</p>
-      <p class="dinero" id="est-mozo" style="margin-top:10px;color:var(--laton-cla)">—</p>
-    </a>
-    <a class="opcion" href="cocina.html">
-      <div class="num">02</div>
-      <h2>Cocina</h2>
-      <p>Pantalla de comandas con cronómetro e impresión manual o automática.</p>
-      <p class="dinero" id="est-cocina" style="margin-top:10px;color:var(--laton-cla)">—</p>
-    </a>
-    <a class="opcion" href="caja.html">
-      <div class="num">03</div>
-      <h2>Caja</h2>
-      <p>Cobra la mesa, agrega gaseosas y cierra el día.</p>
-      <p class="dinero" id="est-caja" style="margin-top:10px;color:var(--laton-cla)">—</p>
-    </a>
+  <span class="esquina ai"></span>
+  <span class="esquina ai2"></span>
+  <span class="esquina ad"></span>
+  <span class="esquina ad2"></span>
+  <span class="esquina bi"></span>
+  <span class="esquina bd"></span>
+
+  <div class="farol izq" aria-hidden="true">
+    <span class="cuerda"></span>
+    <span class="tapa"></span>
+    <span class="globo">福</span>
+    <span class="tapa"></span>
+    <span class="cuerda b"></span>
+  </div>
+  <div class="farol der" aria-hidden="true">
+    <span class="cuerda"></span>
+    <span class="tapa"></span>
+    <span class="globo">福</span>
+    <span class="tapa"></span>
+    <span class="cuerda b"></span>
   </div>
 
-  <footer>
-    Las tres pantallas comparten datos por este navegador. Para usarlas en equipos distintos
-    hace falta un servidor — está anotado en <code>README.md</code>.
+  <div class="dragon-zona" id="dragon-zona">
+    <img class="dragon" src="assets/dragon.png" alt=""
+         onerror="document.getElementById('dragon-zona').classList.add('sin-dragon'); this.remove();">
+    <span class="dragon-sello" aria-hidden="true">龍</span>
+  </div>
+
+  <main class="encabezado">
+    <div class="filete">
+      <span class="linea i"></span>
+      <span class="han">四龍飯店</span>
+      <span class="linea d"></span>
+    </div>
+
+    <p class="sobre-titulo">CHIFA</p>
+    <div class="titulo-fila">
+      <h1>CUATRO<br>DRAGONES</h1>
+      <div class="sello-rojo">美<br>食</div>
+    </div>
+
+    <div class="divisor">
+      <span class="linea i"></span>
+      <span class="rombo"></span>
+      <span class="linea d"></span>
+    </div>
+
+    <p class="bajada">
+      Tres pantallas conectadas: el mozo dispara el número,<br>
+      la cocina lo ve al instante, la caja cobra lo que salió.<br>
+      Abre cada una en su propia pestaña o en su propio equipo.
+    </p>
+  </main>
+
+  <nav class="opciones">
+    <a class="opcion" href="mozo.html">
+      <span class="cab">
+        <span class="num">01</span>
+        <span class="han">侍</span>
+      </span>
+      <span class="titulo">MOZO</span>
+      <span class="desc">Escribe o desliza el código, elige mesa y manda a cocina.</span>
+      <span class="dato" id="dato-mozo">—</span>
+    </a>
+
+    <a class="opcion" href="cocina.html">
+      <span class="cab">
+        <span class="num">02</span>
+        <span class="han">厨</span>
+      </span>
+      <span class="titulo">COCINA</span>
+      <span class="desc">Pantalla de comandas con cronómetro e impresión manual o automática.</span>
+      <span class="dato" id="dato-cocina">—</span>
+    </a>
+
+    <a class="opcion" href="caja.html">
+      <span class="cab">
+        <span class="num">03</span>
+        <span class="han">账</span>
+      </span>
+      <span class="titulo">CAJA</span>
+      <span class="desc">Cobra la mesa, agrega gaseosas y cierra el día.</span>
+      <span class="dato" id="dato-caja">—</span>
+    </a>
+  </nav>
+
+  <footer class="pie">
+    <span class="linea i"></span>
+    <p>
+      Las tres pantallas comparten datos por este navegador. Para usarlas en
+      equipos distintos hace falta un servidor — está anotado en
+      <a href="README.md">README.md</a>.
+    </p>
+    <span class="linea d"></span>
   </footer>
-</main>
+</div>
 
 <script src="assets/data.js"></script>
 <script src="assets/store.js"></script>
 <script>
+  /* Los tres datos de las tarjetas salen del estado real del chifa. */
   function pintar() {
     const cuentas = Store.cuentas();
     const cocina = Store.pedidosCocina();
+    const platos = Store.platosPendientes().length;
     const r = Store.resumenDia();
-    document.getElementById('est-mozo').textContent =
-      `${cuentas.length} mesa${cuentas.length === 1 ? '' : 's'} abierta${cuentas.length === 1 ? '' : 's'}`;
-    document.getElementById('est-cocina').textContent =
-      cocina.length ? `${cocina.length} pedido${cocina.length === 1 ? '' : 's'} en curso` : 'Cocina al día';
-    document.getElementById('est-caja').textContent =
+
+    document.getElementById('dato-mozo').textContent =
+      cuentas.length
+        ? `${cuentas.length} mesa${cuentas.length === 1 ? '' : 's'} abierta${cuentas.length === 1 ? '' : 's'}`
+        : 'Salón libre';
+
+    document.getElementById('dato-cocina').textContent =
+      cocina.length
+        ? `${cocina.length} pedido${cocina.length === 1 ? '' : 's'} · ${platos} plato${platos === 1 ? '' : 's'}`
+        : 'Cocina al día';
+
+    document.getElementById('dato-caja').textContent =
       `${UI.soles(r.total)} · ${r.ventas} cuenta${r.ventas === 1 ? '' : 's'}`;
   }
+
   function reloj() {
-    document.getElementById('reloj').textContent = UI.horaSeg(Date.now());
+    document.getElementById('reloj').textContent =
+      new Date().toLocaleTimeString('es-PE', {
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+      });
   }
+
   Store.on(pintar);
-  pintar(); reloj();
+  pintar();
+  reloj();
   setInterval(reloj, 1000);
   setInterval(pintar, 15000);
 </script>

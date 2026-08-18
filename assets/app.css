@@ -41,7 +41,7 @@ body[data-app="caja"] {
   --linea: #DFD7C7; --txt: var(--tinta); --txt-dim: var(--pizarra);
   --acento: var(--jade); --acento-txt: #fff;
 }
-body[data-app="cocina"], body[data-app="portada"] {
+body[data-app="cocina"] {
   --bg: var(--tinta); --panel: var(--tinta-2); --panel-2: var(--tinta-3);
   --linea: #423326; --txt: var(--arroz); --txt-dim: #A2917C;
   --acento: var(--lacado); --acento-txt: #fff;
@@ -160,43 +160,7 @@ input[type="number"] { font-family: var(--mono); font-variant-numeric: tabular-n
 
 .dinero { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 
-/* ═══ PORTADA ═════════════════════════════════════════════════════════════ */
-body[data-app="portada"] { display: flex; flex-direction: column; }
-.portada {
-  flex: 1; display: flex; flex-direction: column; justify-content: center;
-  max-width: 1080px; margin: 0 auto; width: 100%; padding: 40px 24px 60px;
-}
-.portada h1 {
-  font-family: var(--display); font-stretch: condensed; font-weight: 600;
-  font-size: clamp(2.6rem, 8vw, 5.4rem); line-height: .92; margin: 0 0 6px;
-  letter-spacing: .01em; text-transform: uppercase;
-}
-.portada h1 em { font-style: normal; color: var(--laton-cla); }
-.portada .bajada { color: var(--txt-dim); max-width: 46ch; margin: 0 0 34px; }
-.opciones { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-.opcion {
-  display: block; text-decoration: none; color: inherit;
-  padding: 22px 20px 20px; background: var(--panel);
-  border: 1px solid var(--linea); border-top: 3px solid var(--lacado);
-  border-radius: var(--r); transition: transform .14s ease, background .14s ease;
-}
-.opcion:nth-child(2) { border-top-color: var(--laton); }
-.opcion:nth-child(3) { border-top-color: var(--jade-cla); }
-.opcion:hover { transform: translateY(-3px); background: var(--panel-2); }
-.opcion h2 {
-  font-family: var(--display); font-stretch: condensed; text-transform: uppercase;
-  font-size: 1.75rem; margin: 10px 0 6px; letter-spacing: .04em;
-}
-.opcion p { margin: 0; color: var(--txt-dim); font-size: .92rem; }
-.opcion .num {
-  font-family: var(--display); font-size: 2.4rem; line-height: 1;
-  color: var(--laton-cla); opacity: .5;
-}
-.portada footer { margin-top: 34px; color: var(--txt-dim); font-size: .84rem; }
-.portada footer code {
-  font-family: var(--mono); background: var(--panel); padding: 1px 5px;
-  border-radius: 2px; border: 1px solid var(--linea);
-}
+/* La portada tiene su propia identidad y su propia hoja: assets/portada.css */
 
 /* ═══ MOZO ════════════════════════════════════════════════════════════════ */
 body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
