@@ -116,8 +116,9 @@
 </main>
 
 <!-- Pedido para llevar: se arma como el del mozo y se va a cocina -->
-<dialog id="dlg-llevar">
-  <header>
+<div class="llevar-fondo" id="dlg-llevar" hidden>
+ <div class="llevar-caja">
+  <header class="llevar-cab">
     <h2>Pedido para llevar</h2>
     <span class="eyebrow" id="llevar-mesa"></span>
   </header>
@@ -153,15 +154,26 @@
     </div>
   </div>
 
-  <footer>
+  <footer class="llevar-pie">
     <button class="btn fantasma" id="llevar-cancelar">Cancelar</button>
     <button class="btn lacado grande" id="llevar-enviar" disabled>Enviar a cocina</button>
   </footer>
-</dialog>
+ </div>
+</div>
 
 <script src="assets/data.js"></script>
 <script src="assets/store.js"></script>
 <script src="assets/print.js"></script>
+<script>
+  /* Sin local elegido no se trabaja: los datos son de un local concreto. */
+  (() => {
+    const s = Store.sedeInfo();
+    if (!s) { location.replace('index.html'); return; }
+    const m = document.querySelector('.top .marca span');
+    if (m) m.textContent = m.textContent + ' · ' + s.nombre;
+  })();
+</script>
+
 <script src="assets/caja.js"></script>
 </body>
 </html>

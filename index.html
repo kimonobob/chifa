@@ -24,9 +24,10 @@
       <b>CHIFA</b>
       <i>CUATRO DRAGONES</i>
       <span class="barrita"></span>
-      <small>SISTEMA DE SALÓN</small>
+      <small id="marca-sede">SISTEMA DE SALÓN</small>
     </div>
     <div class="reloj">
+      <button class="salir-sede" id="salir-sede" hidden>Cambiar de local</button>
       <span class="punto"></span>
       <span id="reloj">—</span>
     </div>
@@ -114,20 +115,83 @@
 
   <footer class="pie">
     <span class="linea i"></span>
-    <p>
-      Las tres pantallas comparten datos por este navegador. Para usarlas en
-      equipos distintos hace falta un servidor — está anotado en
-      <a href="README.md">README.md</a>.
-    </p>
+    <p id="pendientes">—</p>
     <span class="linea d"></span>
   </footer>
+</div>
+
+<!-- Puerta de entrada: en qué local se va a trabajar -->
+<div class="puerta" id="puerta" hidden>
+  <div class="puerta-caja">
+    <p class="eyebrow">Chifa Cuatro Dragones</p>
+    <h1>¿En qué local?</h1>
+    <p class="puerta-nota">
+      Cada local lleva sus propias mesas, sus pedidos y su caja. Marca el
+      código para entrar.
+    </p>
+    <div class="sedes" id="sedes"></div>
+  </div>
 </div>
 
 <script src="assets/data.js"></script>
 <script src="assets/store.js"></script>
 <script>
+  // ── Puerta: elegir el local ───────────────────────────────────────────────
+  function pintarSedes() {
+    document.getElementById('sedes').innerHTML = SEDES.map(s => s.abierta ? `
+      <form class="sede abierta" data-id="${s.id}">
+        <span class="sede-nombre">${UI.esc(s.nombre)}</span>
+        ${s.direccion ? `<span class="sede-dir">${UI.esc(s.direccion)}</span>` : ''}
+        <input type="password" inputmode="numeric" autocomplete="off"
+               placeholder="Código" aria-label="Código de ${UI.esc(s.nombre)}">
+        <button type="submit" class="btn primario">Entrar</button>
+        <span class="sede-error" hidden>Ese código no es</span>
+      </form>` : `
+      <div class="sede cerrada">
+        <span class="sede-nombre">${UI.esc(s.nombre)}</span>
+        <span class="sede-dir">Libre — por configurar</span>
+      </div>`).join('');
+  }
+
+  document.getElementById('sedes').addEventListener('submit', e => {
+    e.preventDefault();
+    const f = e.target.closest('.sede');
+    const clave = f.querySelector('input').value;
+    const err = f.querySelector('.sede-error');
+    if (!Store.codigoValido(f.dataset.id, clave)) {
+      err.hidden = false;
+      f.querySelector('input').select();
+      return;
+    }
+    err.hidden = true;
+    Store.entrarSede(f.dataset.id);
+    revisarPuerta();
+  });
+
+  document.getElementById('salir-sede').onclick = () => {
+    Store.salirSede();
+    revisarPuerta();
+  };
+
+  /* Sin local elegido no se ve nada: las tres pantallas trabajan sobre los
+     datos de un local concreto. */
+  function revisarPuerta() {
+    const s = Store.sedeInfo();
+    document.getElementById('puerta').hidden = !!s;
+    document.getElementById('salir-sede').hidden = !s;
+    document.getElementById('marca-sede').textContent =
+      s ? s.nombre.toUpperCase() : 'SISTEMA DE SALÓN';
+    document.querySelectorAll('.opcion').forEach(a => {
+      a.style.pointerEvents = s ? '' : 'none';
+      a.style.opacity = s ? '' : '.35';
+    });
+    if (!s) pintarSedes();
+    else pintar();
+  }
+
   /* Los tres datos de las tarjetas salen del estado real del chifa. */
   function pintar() {
+    if (!Store.sedeInfo()) return;
     const cuentas = Store.cuentas();
     const cocina = Store.pedidosCocina();
     const platos = Store.platosPendientes().length;
@@ -145,6 +209,36 @@
 
     document.getElementById('dato-caja').textContent =
       `${UI.soles(r.total)} · ${r.ventas} cuenta${r.ventas === 1 ? '' : 's'}`;
+
+    pintarPendientes(cuentas);
+  }
+
+  /* Qué está pendiente y en qué mesa: para saber de un vistazo, desde
+     cualquier equipo del local, si hace falta mandar otro mozo. */
+  function pintarPendientes(cuentas) {
+    const esperando = cuentas
+      .filter(c => c.pedidos.some(p => p.estado === 'nuevo' || p.estado === 'preparando'))
+      .sort((a, b) => a.desde - b.desde);
+    const porServir = cuentas.filter(c => c.pedidos.some(p => p.estado === 'listo'));
+    const pie = document.getElementById('pendientes');
+
+    if (!esperando.length && !porServir.length) {
+      pie.textContent = cuentas.length
+        ? `${cuentas.length} mesa${cuentas.length === 1 ? '' : 's'} en consumo · nada pendiente en cocina`
+        : 'Salón libre · nada pendiente';
+      return;
+    }
+
+    const partes = [];
+    if (porServir.length) {
+      partes.push(`<b>Por servir:</b> ${porServir.map(c => c.nombre).join(', ')}`);
+    }
+    if (esperando.length) {
+      partes.push('<b>En cocina:</b> ' + esperando.slice(0, 4).map(c =>
+        `${c.nombre} (${Math.round(UI.minutos(c.desde))} min)`).join(', ') +
+        (esperando.length > 4 ? ` y ${esperando.length - 4} más` : ''));
+    }
+    pie.innerHTML = partes.join(' &nbsp;·&nbsp; ');
   }
 
   function reloj() {
@@ -155,7 +249,7 @@
   }
 
   Store.on(pintar);
-  pintar();
+  revisarPuerta();
   reloj();
   setInterval(reloj, 1000);
   setInterval(pintar, 15000);

@@ -748,8 +748,14 @@ kbd.capturando { border-color: var(--alerta); color: var(--alerta); animation: l
 .foco-caja { width: min(760px, 100%); max-height: 90vh; max-height: 90dvh; overflow-y: auto; --zoom: 1.7; }
 
 /* ═══ CAJA ════════════════════════════════════════════════════════════════ */
-.caja { flex: 1; display: grid; grid-template-columns: 300px 1fr 340px; min-height: 0; }
-.caja-col { display: flex; flex-direction: column; min-height: 0; background: var(--panel); }
+/* minmax(0,1fr) y no 1fr: con 1fr, la tabla ancha del detalle estira su
+   columna y empuja la de cobro fuera de la pantalla, obligando a deslizar
+   a la derecha. Con minmax(0,…) la columna cede y todo entra en la ventana. */
+.caja { flex: 1; display: grid; grid-template-columns: 270px minmax(0, 1fr) 320px; min-height: 0; }
+.caja-col { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--panel); }
+.caja-col .cuerpo { overflow: auto; }
+.caja .tabla { table-layout: fixed; }
+.caja .tabla td, .caja .tabla th { overflow-wrap: anywhere; }
 .caja-col + .caja-col { border-left: 1px solid var(--linea); }
 .caja-col > header {
   padding: 11px 14px; border-bottom: 1px solid var(--linea); background: var(--panel-2);
@@ -775,11 +781,36 @@ kbd.capturando { border-color: var(--alerta); color: var(--alerta); animation: l
 
 .fila-llevar { padding: 10px 12px; border-bottom: 1px solid var(--linea); background: var(--panel-2); }
 
-/* ── Pedido para llevar ──────────────────────────────────────────────────── */
-#dlg-llevar { max-width: min(900px, 96vw); }
+/* ── Pedido para llevar ────────────────────────────────────────────────────
+   Capa propia y no <dialog>: showModal() depende del navegador y acá no
+   puede fallar nada, que es el botón que más se usa en caja.            */
+.llevar-fondo {
+  position: fixed; inset: 0; z-index: 70;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(20,1,3,.62); padding: 16px;
+}
+.llevar-caja {
+  display: flex; flex-direction: column;
+  width: min(940px, 100%); max-height: 92vh; max-height: 92dvh; min-height: 0;
+  background: var(--panel); border: 1px solid var(--linea);
+  border-top: 3px solid var(--lacado); border-radius: var(--r);
+  box-shadow: 0 24px 70px -20px rgba(0,0,0,.6);
+}
+.llevar-cab {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  padding: 14px 18px; border-bottom: 1px solid var(--linea);
+}
+.llevar-cab h2 {
+  margin: 0; font-family: var(--display); font-stretch: condensed;
+  text-transform: uppercase; font-size: 1.4rem; letter-spacing: .06em;
+}
+.llevar-pie {
+  display: flex; gap: 8px; justify-content: flex-end;
+  padding: 12px 18px; border-top: 1px solid var(--linea);
+}
 .llevar-cuerpo {
   display: grid; grid-template-columns: 1.15fr 1fr;
-  height: min(60vh, 520px); min-height: 0;
+  flex: 1; min-height: 0;
 }
 .llevar-carta {
   display: flex; flex-direction: column; min-height: 0;
@@ -842,7 +873,7 @@ kbd.capturando { border-color: var(--alerta); color: var(--alerta); animation: l
   min-width: 1.6em; text-align: center;
 }
 @media (max-width: 760px) {
-  .llevar-cuerpo { grid-template-columns: 1fr; height: min(70vh, 560px); }
+  .llevar-cuerpo { grid-template-columns: 1fr; }
   .llevar-carta { border-right: 0; border-bottom: 1px solid var(--linea); }
 }
 
@@ -952,8 +983,7 @@ dialog > footer { padding: 12px 18px; border-top: 1px solid var(--linea); displa
   .cant-fila button { width: 48px; height: 48px; }
   .mesas-plano { grid-template-columns: 1fr 1fr 22px 1fr; gap: 8px; grid-auto-rows: minmax(72px, 1fr); }
   .mp-num { font-size: 2.1rem; }
-  .caja { grid-template-columns: 220px 1fr; }
-  .caja-col.cobro-col { grid-column: span 2; border-left: 0; border-top: 1px solid var(--linea); }
+  .caja { grid-template-columns: 210px minmax(0, 1fr) 280px; }
   .columnas { grid-template-columns: 1fr 1fr; }
   .col[data-col="listo"] { grid-column: span 2; }
 }

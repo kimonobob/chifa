@@ -182,7 +182,7 @@
     pintarLlevarCarta();
     pintarLlevarPedido();
     pintarLlevarCodigo();
-    dlgLlevar.showModal();
+    dlgLlevar.hidden = false;
     $('#llevar-cod').focus();
   }
 
@@ -295,7 +295,12 @@
   }
 
   $('#btn-llevar').onclick = abrirLlevar;
-  $('#llevar-cancelar').onclick = () => dlgLlevar.close();
+  const cerrarLlevar = () => { dlgLlevar.hidden = true; };
+  $('#llevar-cancelar').onclick = cerrarLlevar;
+  dlgLlevar.addEventListener('click', e => { if (e.target === dlgLlevar) cerrarLlevar(); });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !dlgLlevar.hidden) cerrarLlevar();
+  });
   $('#llevar-buscar').oninput = pintarLlevarCarta;
 
   $('#llevar-cats').addEventListener('click', e => {
@@ -345,7 +350,7 @@
     if (barra) partes.push(`${barra.items.reduce((t, i) => t + i.cant, 0)} bebida(s) a la cuenta`);
     UI.toast(partes.join(' · '), 'ok');
 
-    dlgLlevar.close();
+    cerrarLlevar();
     seleccionar(llevar.mesa);   // queda abierta en caja, lista para cobrar
   };
 

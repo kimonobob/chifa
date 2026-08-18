@@ -32,6 +32,30 @@ portada que tarda en abrir en la tablet es una portada que estorba.
 
 Si no está el archivo, en su lugar sale un sello 龍 y el resto se ve igual.
 
+## Los locales
+
+El sistema trabaja por local. Al abrirlo pregunta **en cuál se va a trabajar** y
+pide su código; a partir de ahí, las mesas, los pedidos y la caja de ese local
+van por separado de los demás.
+
+Vienen tres espacios: **Jr. Lima** ya configurado (código `1111`) y dos libres.
+Para abrir otro local, edita `SEDES` en [assets/data.js](assets/data.js) — ponle
+nombre y código, y cámbiale `abierta` a `true`.
+
+> El código sirve para no entrar al local equivocado, **no es una contraseña de
+> seguridad**: está en un archivo que cualquiera puede abrir. Si hace falta
+> seguridad de verdad, tiene que vivir en un servidor.
+
+Para cambiar de local está **Cambiar de local**, arriba a la derecha en la
+portada.
+
+### Qué está pendiente
+
+El pie de la portada dice, en vivo, **qué mesas están esperando y desde hace
+cuántos minutos**, y cuáles ya tienen platos listos para servir. Sirve para ver
+de un vistazo, desde cualquier equipo del local, si hay que mandar otro mozo al
+salón.
+
 ## Cómo abrirlo
 
 **Opción rápida:** doble clic en `index.html`.

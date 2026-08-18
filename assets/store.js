@@ -5,8 +5,34 @@
 const Store = (() => {
   /* v2: entró la carta real de Cuatro Dragones. Los datos de la v1 tenían
      otros códigos y otros precios, así que se parte de cero en vez de
-     mezclarlos y sacar cuentas equivocadas. */
-  const KEY = 'chifa:estado:v2';
+     mezclarlos y sacar cuentas equivocadas.
+
+     Cada local guarda en su propia clave: los pedidos de Jr. Lima no se
+     mezclan con los de otro local. */
+  const SEDE_KEY = 'chifa:sede';
+  const clave = () => `chifa:estado:v2:${sede()}`;
+
+  function sede() {
+    try { return localStorage.getItem(SEDE_KEY) || ''; }
+    catch (e) { return ''; }
+  }
+  function sedeInfo() {
+    return (typeof SEDES !== 'undefined' && SEDES.find(s => s.id === sede())) || null;
+  }
+  function entrarSede(id) {
+    try { localStorage.setItem(SEDE_KEY, id); } catch (e) { /* sin persistencia */ }
+    cache = null;
+    avisar('cambio');
+  }
+  function salirSede() {
+    try { localStorage.removeItem(SEDE_KEY); } catch (e) {}
+    cache = null;
+  }
+  /* ¿El código abre ese local? */
+  function codigoValido(id, codigo) {
+    const s = typeof SEDES !== 'undefined' && SEDES.find(x => x.id === id);
+    return !!(s && s.abierta && String(codigo).trim() === String(s.codigo));
+  }
   const canal = 'BroadcastChannel' in window ? new BroadcastChannel('chifa') : null;
   const oyentes = new Set();
   let cache = null;
@@ -49,7 +75,7 @@ const Store = (() => {
   function leer() {
     if (cache) return cache;
     try {
-      const raw = localStorage.getItem(KEY);
+      const raw = localStorage.getItem(clave());
       cache = raw ? { ...inicial(), ...JSON.parse(raw) } : inicial();
       cache.config = { ...inicial().config, ...(cache.config || {}) };
     } catch (e) {
@@ -60,7 +86,7 @@ const Store = (() => {
 
   function escribir(s) {
     cache = s;
-    localStorage.setItem(KEY, JSON.stringify(s));
+    localStorage.setItem(clave(), JSON.stringify(s));
   }
 
   /* Toda mutación relee del disco primero: si otra pestaña escribió mientras
@@ -86,7 +112,7 @@ const Store = (() => {
     };
   }
   window.addEventListener('storage', e => {
-    if (e.key !== KEY) return;
+    if (e.key !== clave()) return;
     cache = null;
     oyentes.forEach(cb => cb('cambio'));
   });
@@ -596,7 +622,7 @@ const Store = (() => {
   }
 
   function borrarTodo() {
-    localStorage.removeItem(KEY);
+    localStorage.removeItem(clave());
     cache = null;
     avisar('cambio');
   }
@@ -604,6 +630,7 @@ const Store = (() => {
   return {
     on: cb => { oyentes.add(cb); return () => oyentes.delete(cb); },
     estado: leer, hoy, avisar,
+    sede, sedeInfo, entrarSede, salirSede, codigoValido,
     carta, plato, editarPlato, mesas, mesasMozo, nuevaMesaLlevar, ordenMesa, minutosPlato,
     platosPendientes, platosEntregados, priorizarItem, desmarcarUnidad,
     grupos, grupoDe, mesasDe, claveCuenta, unirMesas, separarMesas, nombreCuenta, mesaCorta,

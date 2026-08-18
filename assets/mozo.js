@@ -7,7 +7,7 @@
 (() => {
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
-  const BORRADORES = 'chifa:borradores';
+  const BORRADORES = `chifa:borradores:${Store.sede()}`;   // uno por local
 
   const st = {
     vista: 'salon',

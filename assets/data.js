@@ -13,6 +13,24 @@
    Caja › Ajustes › Carta.
    ═══════════════════════════════════════════════════════════════════════ */
 
+/* ══════════════════════════════════════════════════════════════════════════
+   LOCALES
+   Cada local trabaja en su propio espacio: sus mesas, sus pedidos y su caja
+   van por separado, aunque compartan la misma carta. Para entrar se marca
+   el código del local.
+
+   Para abrir un local nuevo: ponle nombre y código, y cámbiale `abierta` a
+   true. Los códigos se editan acá, en este archivo.
+
+   Ojo: el código sirve para no entrar al local equivocado, no es una
+   contraseña de seguridad — cualquiera que abra este archivo lo ve.
+   ═══════════════════════════════════════════════════════════════════════ */
+const SEDES = [
+  { id: 'lima',   nombre: 'Jr. Lima',  direccion: '', codigo: '1111', abierta: true  },
+  { id: 'local2', nombre: 'Local 2',   direccion: '', codigo: '2222', abierta: false },
+  { id: 'local3', nombre: 'Local 3',   direccion: '', codigo: '3333', abierta: false }
+];
+
 const CATEGORIAS = [
   { id: 'empezar',      nombre: 'Para empezar',       rango: '1–11' },
   { id: 'sopas',        nombre: 'Sopas',              rango: '12–24' },
