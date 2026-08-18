@@ -13,7 +13,7 @@
 <link rel="stylesheet" media="print" onload="this.media='all'"
       href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Noto+Serif+SC:wght@700&display=swap">
 
-<link rel="stylesheet" href="assets/portada.css?v=8">
+<link rel="stylesheet" href="assets/portada.css?v=9">
 </head>
 <body>
 
@@ -133,8 +133,8 @@
   </div>
 </div>
 
-<script src="assets/data.js?v=8"></script>
-<script src="assets/store.js?v=8"></script>
+<script src="assets/data.js?v=9"></script>
+<script src="assets/store.js?v=9"></script>
 <script>
   // ── Puerta: elegir el local ───────────────────────────────────────────────
   function pintarSedes() {
@@ -213,8 +213,10 @@
       a.style.pointerEvents = s ? '' : 'none';
       a.style.opacity = s ? '' : '.35';
     });
-    if (!s) pintarSedes();
-    else pintar();
+    /* Los locales se pintan siempre: si por lo que sea la puerta llegara a
+       verse, nunca puede salir vacía. */
+    pintarSedes();
+    if (s) pintar();
   }
 
   /* Los tres datos de las tarjetas salen del estado real del chifa. */
