@@ -1,51 +1,57 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   Chifaa · sistema de salón, cocina y caja
-   El tema sigue al ambiente: mozo claro (salón), cocina oscura (pantalla a
-   distancia, con vapor y reflejos), caja clara con latón para el dinero.
+   Chifa Cuatro Dragones · salón, cocina y caja
+   Las tres pantallas llevan la laca roja y el oro de la portada. Lo que no
+   se toca es la disposición: está medida para una tablet en la mano y para
+   una pantalla de cocina que se lee a dos metros.
    Elemento firma: la CHAPA — el código en una placa cuadrada, como la carta
    de pared del chifa. Aparece igual en los tres módulos.
    ═════════════════════════════════════════════════════════════════════════ */
 
+/* Paleta de Cuatro Dragones: laca roja, oro y crema. Es la misma de la
+   portada, para que las tres pantallas de trabajo se sientan del mismo
+   local. Los nombres de los tokens no cambian: solo cambian los valores. */
 :root {
-  --lacado:      #C0202B;
-  --lacado-osc:  #8E1720;
-  --laton:       #B8801A;
-  --laton-cla:   #EBB94F;
-  --jade:        #1B7A57;
-  --jade-cla:    #3FAE83;
-  --tinta:       #17120F;
-  --tinta-2:     #221A15;
-  --tinta-3:     #2F251C;
-  --arroz:       #F4EDE0;
-  --arroz-2:     #E7DBC5;
-  --papel:       #FCFAF4;
-  --pizarra:     #6C6154;
+  --lacado:      #c01018;
+  --lacado-osc:  #8c0a10;
+  --laton:       #c9931f;
+  --laton-cla:   #e8b44a;
+  --jade:        #1f7d5c;
+  --jade-cla:    #46b98d;
+  --tinta:       #2b0407;
+  --tinta-2:     #3d0508;
+  --tinta-3:     #4f070d;
+  --arroz:       #f6e5cf;
+  --arroz-2:     #e3cfb4;
+  --papel:       #fdf3e3;
+  --pizarra:     #a08a76;
+  /* El rojo de la laca se apaga contra el fondo oscuro; para avisos y
+     bordes de alerta se usa este, que sí levanta. */
+  --alerta:      #ff7a68;
 
-  --display: "Bahnschrift Condensed", "Bahnschrift SemiCondensed", Bahnschrift,
-             "DIN Condensed", "Oswald", "Arial Narrow", "Haettenschweiler", sans-serif;
+  --display: Oswald, "Bahnschrift Condensed", "Bahnschrift SemiCondensed", Bahnschrift,
+             "DIN Condensed", "Arial Narrow", "Haettenschweiler", sans-serif;
   --texto:   "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
-  --mono:    "Cascadia Mono", Consolas, "SF Mono", ui-monospace, monospace;
+  --mono:    "JetBrains Mono", "Cascadia Mono", Consolas, "SF Mono", ui-monospace, monospace;
+  --han:     "Noto Serif SC", "Source Han Serif SC", "Songti SC", SimSun, "Microsoft YaHei", serif;
 
   --r: 3px;                 /* radio contenido: esto es una herramienta, no una app de moda */
   --sombra: 0 1px 0 rgba(23,18,15,.06), 0 8px 24px -12px rgba(23,18,15,.28);
 }
 
-/* ── Temas por módulo ─────────────────────────────────────────────────────── */
-body[data-app="mozo"] {
-  --bg: var(--arroz); --panel: var(--papel); --panel-2: #F7F1E5;
-  --linea: #DCCFB6; --txt: var(--tinta); --txt-dim: var(--pizarra);
+/* ── Tema ─────────────────────────────────────────────────────────────────
+   Las tres pantallas comparten la laca. Las superficies van opacas a
+   propósito: acá hay tablas densas y comandas que se leen a distancia, y
+   la textura de la portada les quitaría nitidez.                         */
+body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
+  --bg: #3d0508;
+  --panel: #4d0a10;
+  --panel-2: #5e0d15;
+  --linea: rgba(232,180,74,.26);
+  --txt: var(--arroz);
+  --txt-dim: rgba(246,229,207,.58);
   --acento: var(--lacado); --acento-txt: #fff;
 }
-body[data-app="caja"] {
-  --bg: #F5F1E8; --panel: #fff; --panel-2: #FAF7F0;
-  --linea: #DFD7C7; --txt: var(--tinta); --txt-dim: var(--pizarra);
-  --acento: var(--jade); --acento-txt: #fff;
-}
-body[data-app="cocina"] {
-  --bg: var(--tinta); --panel: var(--tinta-2); --panel-2: var(--tinta-3);
-  --linea: #423326; --txt: var(--arroz); --txt-dim: #A2917C;
-  --acento: var(--lacado); --acento-txt: #fff;
-}
+body[data-app="caja"] { --acento: var(--jade); }
 
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -76,7 +82,7 @@ button { cursor: pointer; }
   border-radius: 2px;
   box-shadow: inset 0 0 0 1px rgba(235,185,79,.28);
 }
-.chapa.bar   { background: #2B3E4A; color: #9FD4E8; box-shadow: inset 0 0 0 1px rgba(159,212,232,.3); }
+.chapa.bar   { background: #123328; color: #7fd8b4; box-shadow: inset 0 0 0 1px rgba(127,216,180,.32); }
 .chapa.grande{ font-size: 2.1rem; }
 .chapa.claro { background: var(--laton-cla); color: var(--tinta); box-shadow: inset 0 0 0 1px rgba(23,18,15,.25); }
 
@@ -84,31 +90,34 @@ button { cursor: pointer; }
 .top {
   display: flex; align-items: center; gap: 14px;
   padding: 0 14px; height: 54px; flex: 0 0 auto;
-  background: var(--tinta); color: var(--arroz);
-  border-bottom: 3px solid var(--lacado);
+  background: linear-gradient(180deg, rgba(20,1,3,.92), rgba(43,4,7,.7));
+  color: var(--arroz);
+  border-bottom: 1px solid rgba(232,180,74,.45);
+  box-shadow: inset 0 -4px 0 -3px var(--lacado);
 }
 .top .marca {
-  font-family: var(--display); font-stretch: condensed;
-  font-size: 1.32rem; font-weight: 600; letter-spacing: .06em;
-  text-transform: uppercase; display: flex; align-items: baseline; gap: .5em;
+  font-family: var(--mono); font-weight: 700;
+  font-size: 1.02rem; letter-spacing: .1em;
+  text-transform: uppercase; display: flex; align-items: baseline; gap: .55em;
 }
 .top .marca b { color: var(--laton-cla); font-weight: 600; }
 .top .marca span {
-  font-size: .68rem; letter-spacing: .22em; color: #A2917C;
-  border-left: 1px solid #4A3A2B; padding-left: .7em;
+  font-family: var(--mono); font-size: .66rem; letter-spacing: .22em;
+  color: rgba(246,229,207,.55);
+  border-left: 1px solid rgba(232,180,74,.32); padding-left: .7em;
 }
 .top .crece { flex: 1; }
 .top .reloj {
-  font-family: var(--mono); font-size: .82rem; color: #A2917C;
+  font-family: var(--mono); font-size: .82rem; color: var(--laton-cla);
   font-variant-numeric: tabular-nums;
 }
 .top a.salir {
-  color: #A2917C; text-decoration: none; font-size: .8rem;
+  color: rgba(246,229,207,.7); text-decoration: none; font-size: .8rem;
   letter-spacing: .1em; text-transform: uppercase;
-  padding: 6px 10px; border: 1px solid #4A3A2B; border-radius: var(--r);
+  padding: 6px 10px; border: 1px solid rgba(232,180,74,.32); border-radius: var(--r);
 }
 .top a.salir:hover { color: var(--arroz); border-color: var(--laton); }
-.top select { background: #221A15; border-color: #4A3A2B; color: var(--arroz); }
+.top select { background: var(--tinta); border-color: rgba(232,180,74,.32); color: var(--arroz); }
 
 /* ── Botones ───────────────────────────────────────────────────────────────── */
 .btn {
@@ -153,10 +162,10 @@ input[type="number"] { font-family: var(--mono); font-variant-numeric: tabular-n
   font-family: var(--display); font-stretch: condensed;
   border: 1px solid currentColor;
 }
-.pill.nuevo      { color: var(--lacado); }
-.pill.preparando { color: var(--laton); }
+.pill.nuevo      { color: var(--alerta); }
+.pill.preparando { color: var(--laton-cla); }
 .pill.listo      { color: var(--jade-cla); }
-.pill.bar        { color: #6FB6D2; }
+.pill.bar        { color: #7fd8b4; }
 
 .dinero { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
 
@@ -190,13 +199,13 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
   text-transform: uppercase; font-size: 2.1rem; line-height: 1; letter-spacing: .04em;
 }
 .salon-ayuda { margin: 5px 0 0; color: var(--txt-dim); font-size: .92rem; }
-.salon-ayuda b { color: var(--lacado); font-weight: 600; }
+.salon-ayuda b { color: var(--laton-cla); font-weight: 600; }
 .leyenda { display: flex; gap: 14px; flex-wrap: wrap; font-size: .8rem; color: var(--txt-dim); }
 .leyenda span { display: inline-flex; align-items: center; gap: 6px; }
 .pt { width: 11px; height: 11px; border-radius: 2px; border: 1px solid var(--linea); }
-.pt.libre   { background: var(--panel); }
+.pt.libre   { background: var(--panel); border-color: var(--linea); }
 .pt.ocupada { background: var(--laton); border-color: var(--laton); }
-.pt.cocina  { background: var(--lacado); border-color: var(--lacado); }
+.pt.cocina  { background: var(--alerta); border-color: var(--alerta); }
 .pt.lista   { background: var(--jade); border-color: var(--jade); }
 
 .plano-caja { flex: 1; min-height: 0; display: flex; }
@@ -240,24 +249,25 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
 .mp-punto {
   position: absolute; top: 6px; right: 6px; width: 10px; height: 10px; border-radius: 50%;
 }
-.mesa-plano.ocupada { border-color: var(--laton); background: #FBF4E2; }
-.mesa-plano.ocupada .mp-info { color: #8A6410; }
-.mesa-plano.cocina  { border-color: var(--lacado); }
-.mesa-plano.cocina .mp-punto  { background: var(--lacado); animation: latir 1.6s infinite; }
-.mesa-plano.lista   { border-color: var(--jade); background: #EAF6F0; }
+.mesa-plano.ocupada { border-color: var(--laton); background: rgba(232,180,74,.13); }
+.mesa-plano.ocupada .mp-info { color: var(--laton-cla); }
+.mesa-plano.cocina  { border-color: var(--alerta); }
+.mesa-plano.cocina .mp-punto  { background: var(--alerta); animation: latir 1.6s infinite; }
+.mesa-plano.lista   { border-color: var(--jade-cla); background: rgba(70,185,141,.14); }
 .mesa-plano.lista .mp-punto { background: var(--jade); }
-.mesa-plano.unida   { box-shadow: inset 0 0 0 3px rgba(192,32,43,.14); }
+.mesa-plano.unida   { box-shadow: inset 0 0 0 3px rgba(232,180,74,.3); }
 .mesa-plano:active  { transform: scale(.97); }
-.mesa-plano.origen  { border-color: var(--lacado); box-shadow: 0 0 0 3px rgba(192,32,43,.3); }
+.mesa-plano.origen  { border-color: var(--alerta); box-shadow: 0 0 0 3px rgba(255,122,104,.35); }
 .mesa-plano.destino { border-color: var(--jade); box-shadow: 0 0 0 4px rgba(31,125,92,.35); transform: scale(1.05); }
 
 .uniones { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
-.uniones line { stroke: var(--lacado); stroke-width: 3; stroke-linecap: round; }
+.uniones line { stroke: var(--alerta); stroke-width: 3; stroke-linecap: round; }
 .uniones line.fantasma { stroke-dasharray: 6 6; opacity: .8; }
 
 .chips-grupo { position: absolute; inset: 0; pointer-events: none; }
 .chip-grupo {
   position: absolute; transform: translate(-50%, -50%); pointer-events: auto;
+  border: 1px solid rgba(232,180,74,.5);
   display: inline-flex; align-items: center; gap: 7px; padding: 4px 5px 4px 11px;
   background: var(--tinta); color: var(--arroz); border-radius: 100px; white-space: nowrap;
   font-family: var(--display); font-stretch: condensed; font-size: .8rem; letter-spacing: .08em;
@@ -276,7 +286,7 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
   font-family: var(--display); font-stretch: condensed; text-transform: uppercase;
   letter-spacing: .08em; font-size: 1.06rem;
 }
-.zona-btn.ocupada { border-color: var(--laton); background: #FBF4E2; }
+.zona-btn.ocupada { border-color: var(--laton); background: rgba(232,180,74,.13); }
 .zona-btn .zt {
   font-family: var(--mono); font-size: .84rem; color: var(--txt-dim);
   text-transform: none; letter-spacing: 0;
@@ -298,14 +308,16 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
 }
 .lista-cab {
   display: flex; gap: 10px; align-items: center; padding: 12px 14px;
-  background: var(--tinta); flex: 0 0 auto;
+  background: linear-gradient(180deg, rgba(20,1,3,.92), rgba(43,4,7,.75)); flex: 0 0 auto;
+  border-bottom: 1px solid rgba(232,180,74,.3);
 }
 .lista-cab input {
   flex: 1; min-width: 0; padding: 13px 15px; font-size: 1.1rem;
-  background: #2B211A; border: 1px solid #4A3A2B; color: var(--arroz); border-radius: var(--r);
+  background: rgba(43,4,7,.75); border: 1px solid rgba(232,180,74,.35);
+  color: var(--arroz); border-radius: var(--r);
 }
-.lista-cab input::placeholder { color: #8E7C68; }
-.lista-cab .btn { background: transparent; color: var(--arroz); border-color: #4A3A2B; }
+.lista-cab input::placeholder { color: rgba(246,229,207,.45); }
+.lista-cab .btn { background: transparent; color: var(--arroz); border-color: rgba(232,180,74,.35); }
 
 .lista-cats {
   display: flex; gap: 6px; padding: 10px 14px; overflow-x: auto;
@@ -316,7 +328,7 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
   flex: 0 0 auto; padding: 7px 13px; border-radius: 100px; font-size: .84rem;
   background: var(--panel); border: 1px solid var(--linea); white-space: nowrap;
 }
-.cat-chip.on { background: var(--tinta); color: var(--arroz); border-color: var(--tinta); }
+.cat-chip.on { background: var(--laton); color: var(--tinta); border-color: var(--laton); }
 
 .lista-cuerpo { flex: 1; overflow-y: auto; min-height: 0; }
 .lista-grupo {
@@ -367,8 +379,8 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
   font-size: 4.2rem; line-height: 1; font-variant-numeric: tabular-nums;
   box-shadow: inset 0 0 0 1px rgba(235,185,79,.22), inset 0 -14px 22px -14px rgba(0,0,0,.7);
 }
-.slot.vacio { color: #4A3A2B; }
-.slot.cursor { box-shadow: inset 0 0 0 2px var(--lacado), inset 0 -14px 22px -14px rgba(0,0,0,.7); }
+.slot.vacio { color: rgba(232,180,74,.22); }
+.slot.cursor { box-shadow: inset 0 0 0 2px var(--alerta), inset 0 -14px 22px -14px rgba(0,0,0,.7); }
 .resuelto { min-width: 0; }
 .resuelto .nombre {
   font-family: var(--display); font-stretch: condensed; text-transform: uppercase;
@@ -401,7 +413,7 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
   font-family: var(--display); font-stretch: condensed; letter-spacing: .1em; font-size: .92rem;
 }
 .tamanos button + button { border-left: 1px solid var(--linea); }
-.tamanos button.on { background: var(--tinta); color: var(--laton-cla); }
+.tamanos button.on { background: var(--laton); color: var(--tinta); }
 .tamanos button:disabled { opacity: .35; }
 
 /* Rueda deslizable de códigos */
@@ -430,12 +442,12 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
   margin-top: 3px; height: 2.3em; overflow: hidden;
 }
 .rueda-item.centro {
-  opacity: 1; transform: scale(1.06); border-color: var(--lacado);
-  box-shadow: 0 0 0 2px rgba(192,32,43,.16);
+  opacity: 1; transform: scale(1.06); border-color: var(--laton-cla);
+  box-shadow: 0 0 0 2px rgba(232,180,74,.22);
 }
 .rueda-guia {
   position: absolute; left: 50%; top: 42px; bottom: 14px; width: 0;
-  border-left: 1px dashed rgba(192,32,43,.4); pointer-events: none;
+  border-left: 1px dashed rgba(232,180,74,.45); pointer-events: none;
 }
 
 /* Teclado a la izquierda · Notas de cocina a la derecha, mitad y mitad */
@@ -458,7 +470,7 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
 .keypad button:active { background: var(--tinta); color: var(--laton-cla); }
 .keypad button.aux { font-size: 1.05rem; letter-spacing: .06em; text-transform: uppercase; }
 .keypad button.borrar { background: var(--panel-2); }
-.keypad .agregar { grid-column: span 3; height: 66px; background: var(--tinta); color: var(--laton-cla); border-color: transparent; font-size: 1.3rem; letter-spacing: .08em; text-transform: uppercase; }
+.keypad .agregar { grid-column: span 3; height: 66px; background: var(--laton); color: var(--tinta); border-color: transparent; font-size: 1.3rem; letter-spacing: .08em; text-transform: uppercase; }
 .keypad .agregar:disabled { background: var(--panel-2); color: var(--txt-dim); border-color: var(--linea); }
 
 /* Enviar a cocina, repetido bajo el teclado: en tablet el panel del pedido
@@ -482,7 +494,7 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
   padding: 9px 14px; background: var(--panel); border: 1px solid var(--linea);
   border-radius: 100px; font-size: .88rem;
 }
-.nota-chip.on { background: var(--tinta); color: var(--arroz); border-color: var(--tinta); }
+.nota-chip.on { background: var(--laton); color: var(--tinta); border-color: var(--laton); }
 
 /* Atajos de teclado, al final de la columna */
 .atajos {
@@ -512,7 +524,7 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
   width: 30px; height: 30px; border: 1px solid var(--linea); background: transparent;
   border-radius: var(--r); color: var(--txt-dim); font-size: 1rem; line-height: 1;
 }
-.linea .quitar:hover { color: var(--lacado); border-color: var(--lacado); }
+.linea .quitar:hover { color: #ff8a7a; border-color: #ff8a7a; }
 .linea.enviada { background: var(--panel-2); }
 .linea.enviada .txt b { font-weight: 500; }
 .vacio-msg { padding: 34px 20px; text-align: center; color: var(--txt-dim); font-size: .9rem; }
@@ -571,8 +583,7 @@ kbd {
   background: var(--panel-2); color: var(--arroz);
   border: 1px solid var(--linea); border-bottom-width: 3px; border-radius: 4px;
 }
-body[data-app="caja"] kbd, body[data-app="mozo"] kbd { color: var(--txt); }
-kbd.capturando { border-color: var(--lacado); color: var(--lacado); animation: latir 1s infinite; }
+kbd.capturando { border-color: var(--alerta); color: var(--alerta); animation: latir 1s infinite; }
 @keyframes latir { 50% { opacity: .45; } }
 
 .columnas { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--linea); min-height: 0; }
@@ -589,8 +600,8 @@ kbd.capturando { border-color: var(--lacado); color: var(--lacado); animation: l
   font-family: var(--display); font-size: 1.24rem; min-width: 1.6em; text-align: center;
   background: var(--panel-2); border-radius: 2px; padding: 0 6px;
 }
-.col[data-col="nuevo"] .col-cab      { border-bottom-color: var(--lacado); }
-.col[data-col="preparando"] .col-cab { border-bottom-color: var(--laton); }
+.col[data-col="nuevo"] .col-cab      { border-bottom-color: var(--alerta); }
+.col[data-col="preparando"] .col-cab { border-bottom-color: var(--laton-cla); }
 .col[data-col="listo"] .col-cab      { border-bottom-color: var(--jade-cla); }
 .col-cuerpo { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
 
@@ -599,10 +610,10 @@ kbd.capturando { border-color: var(--lacado); color: var(--lacado); animation: l
   border-left: 4px solid var(--linea); border-radius: var(--r);
   font-size: calc(1rem * var(--zoom, 1));
 }
-.comanda.est-nuevo      { border-left-color: var(--lacado); }
+.comanda.est-nuevo      { border-left-color: var(--alerta); }
 .comanda.est-preparando { border-left-color: var(--laton); }
 .comanda.est-listo      { border-left-color: var(--jade-cla); }
-.comanda.tarde          { box-shadow: 0 0 0 2px rgba(192,32,43,.5); }
+.comanda.tarde          { box-shadow: 0 0 0 2px rgba(255,122,104,.55); }
 .comanda.tarde .crono   { color: #FF7A6B; animation: latir 1.4s infinite; }
 .comanda.nueva          { animation: entrar .35s ease-out; }
 @keyframes entrar { from { opacity: 0; transform: translateY(-8px); } }
@@ -623,14 +634,12 @@ kbd.capturando { border-color: var(--lacado); color: var(--lacado); animation: l
   display: grid; grid-template-columns: auto auto 1fr; gap: 9px; align-items: start;
   padding: 7px 11px; cursor: pointer;
 }
-.comanda-items li + li { border-top: 1px solid rgba(255,255,255,.05); }
-body[data-app="mozo"] .comanda-items li + li, body[data-app="caja"] .comanda-items li + li { border-top-color: var(--linea); }
+.comanda-items li + li { border-top: 1px solid rgba(232,180,74,.12); }
 .comanda-items li:hover { background: var(--panel-2); }
 .comanda-items .cx {
   font-family: var(--display); font-stretch: condensed; font-size: 1.5em; line-height: 1;
-  color: var(--lacado); min-width: 1.6em;
+  color: #ff8a7a; min-width: 1.6em;
 }
-body[data-app="cocina"] .comanda-items .cx { color: #FF8A7A; }
 .comanda-items .nom { font-size: 1.12em; line-height: 1.16; font-weight: 500; }
 .comanda-items .tam {
   font-family: var(--display); font-size: .82em; padding: 0 5px; margin-left: 5px;
@@ -640,7 +649,6 @@ body[data-app="cocina"] .comanda-items .cx { color: #FF8A7A; }
   display: block; margin-top: 3px; font-size: .92em; color: var(--laton-cla);
   border-left: 2px solid var(--laton); padding-left: 7px;
 }
-body[data-app="mozo"] .comanda-items .nota, body[data-app="caja"] .comanda-items .nota { color: var(--laton); }
 .comanda-items li.hecho { opacity: .42; }
 .comanda-items li.hecho .nom { text-decoration: line-through; }
 .comanda-items li.es-bar .cx { color: #6FB6D2; }
@@ -676,7 +684,7 @@ body[data-app="mozo"] .comanda-items .nota, body[data-app="caja"] .comanda-items
   background: transparent; color: var(--txt-dim);
   border: 1px solid var(--linea); border-radius: 100px;
 }
-.entregado-item .deshacer:hover { color: var(--lacado); border-color: var(--lacado); }
+.entregado-item .deshacer:hover { color: #ff8a7a; border-color: #ff8a7a; }
 .entregado-item.reciente { opacity: 1; }
 
 .sig-atajo {
@@ -686,7 +694,7 @@ body[data-app="mozo"] .comanda-items .nota, body[data-app="caja"] .comanda-items
 
 .sig-eyebrow {
   font-family: var(--display); font-stretch: condensed; text-transform: uppercase;
-  letter-spacing: .3em; font-size: .8rem; color: var(--lacado); margin: 0 0 6px;
+  letter-spacing: .3em; font-size: .8rem; color: var(--alerta); margin: 0 0 6px;
 }
 .sig-chapa {
   font-family: var(--display); font-stretch: condensed; font-weight: 600;
@@ -723,11 +731,12 @@ body[data-app="mozo"] .comanda-items .nota, body[data-app="caja"] .comanda-items
 .cola-item .cn { min-width: 0; font-size: 1.02rem; line-height: 1.16; }
 .cola-item .cn small { display: block; color: var(--txt-dim); font-size: .78rem; }
 .cola-item .cmin { font-family: var(--mono); font-size: .78rem; color: var(--txt-dim); white-space: nowrap; }
-.cola-item.adelantado { box-shadow: inset 3px 0 0 var(--lacado); }
+.cola-item.adelantado { box-shadow: inset 3px 0 0 var(--alerta); }
 .cola-item .ahora {
+  background: transparent;
   font-family: var(--display); font-stretch: condensed; text-transform: uppercase;
-  font-size: .7rem; letter-spacing: .1em; color: var(--lacado);
-  border: 1px solid var(--lacado); border-radius: 100px; padding: 3px 8px; opacity: 0;
+  font-size: .7rem; letter-spacing: .1em; color: var(--alerta);
+  border: 1px solid var(--alerta); border-radius: 100px; padding: 3px 8px; opacity: 0;
 }
 .cola-item:hover .ahora, .cola-item:focus-visible .ahora { opacity: 1; }
 @media (pointer: coarse) { .cola-item .ahora { opacity: 1; } }
@@ -759,7 +768,7 @@ body[data-app="mozo"] .comanda-items .nota, body[data-app="caja"] .comanda-items
   display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center;
 }
 .cuenta-item:hover { background: var(--panel-2); }
-.cuenta-item.activa { background: #EDF6F1; box-shadow: inset 3px 0 0 var(--jade); }
+.cuenta-item.activa { background: rgba(70,185,141,.13); box-shadow: inset 3px 0 0 var(--jade-cla); }
 .cuenta-item .mesa-n { font-family: var(--display); font-stretch: condensed; font-size: 1.5rem; line-height: 1; }
 .cuenta-item small { display: block; color: var(--txt-dim); font-size: .74rem; }
 .cuenta-item .tot { font-family: var(--mono); font-weight: 600; }
@@ -808,7 +817,7 @@ body[data-app="mozo"] .comanda-items .nota, body[data-app="caja"] .comanda-items
 .resumen-cobro .f.grande { border-top: 1px solid var(--linea); margin-top: 6px; padding-top: 8px; }
 .resumen-cobro .f.grande .val { font-size: 1.9rem; font-weight: 600; }
 .resumen-cobro .f.vuelto .val { color: var(--jade); font-size: 1.3rem; font-weight: 600; }
-.resumen-cobro .f.falta .val { color: var(--lacado); font-size: 1.3rem; font-weight: 600; }
+.resumen-cobro .f.falta .val { color: var(--alerta); font-size: 1.3rem; font-weight: 600; }
 .billetes { display: flex; flex-wrap: wrap; gap: 5px; }
 .billetes button {
   padding: 5px 10px; background: var(--panel); border: 1px solid var(--linea);
@@ -854,7 +863,7 @@ dialog > footer { padding: 12px 18px; border-top: 1px solid var(--linea); displa
   animation: subir .22s ease-out;
 }
 .toast.ok    { border-color: var(--jade-cla); }
-.toast.error { border-color: var(--lacado); }
+.toast.error { border-color: var(--alerta); }
 .toast.fuera { opacity: 0; transition: opacity .3s ease; }
 @keyframes subir { from { opacity: 0; transform: translateY(12px); } }
 
@@ -880,7 +889,7 @@ dialog > footer { padding: 12px 18px; border-top: 1px solid var(--linea); displa
 /* Tablet vertical — el teclado y las notas siguen lado a lado */
 @media (max-width: 900px) {
   .mozo { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
-  .mozo-der { border-left: 0; border-top: 2px solid var(--lacado); max-height: 42vh; max-height: 42dvh; }
+  .mozo-der { border-left: 0; border-top: 2px solid var(--alerta); max-height: 42vh; max-height: 42dvh; }
   .salon { padding: 12px 14px 14px; }
   .salon-titulo { font-size: 1.7rem; }
   .rueda-item { width: 104px; }

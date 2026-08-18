@@ -11,14 +11,31 @@ internet.
 | Cocina | `cocina.html` | Ve las comandas e imprime |
 | Caja | `caja.html` | Cobra, vende bebidas, cierra el día |
 
-`index.html` es la portada con las tres opciones y un resumen en vivo. Lleva la
-identidad del chifa —laca roja, oro, faroles y dragón— sobre el diseño hecho en
-Claude Design; las tres pantallas de trabajo conservan su aspecto sobrio, que
-está afinado para usarse a toda velocidad en pleno servicio.
+`index.html` es la portada con las tres opciones y un resumen en vivo. Entra
+completa **en una sola pantalla, sin scroll**, tanto en monitor como en celular.
 
-> **Falta el dragón.** La portada espera la ilustración en
-> `assets/dragon.png`. Mientras no esté, muestra en su lugar un sello 龍 y todo
-> lo demás se ve igual. Copia ahí el archivo y aparece solo, sin tocar nada.
+Las cuatro pantallas llevan la misma identidad —laca roja, oro y crema, sobre
+el diseño hecho en Claude Design—. Lo que no cambió es la **disposición** de
+las pantallas de trabajo: los tamaños y las distancias están medidos para una
+tablet en la mano y para un monitor de cocina que se lee a dos metros.
+
+## Dónde va el dragón
+
+Copia la ilustración exactamente acá:
+
+```
+assets/dragon.png
+```
+
+O sea, en la carpeta `assets` que está junto a `index.html`, con ese nombre.
+Aparece sola al recargar; no hay que tocar ningún archivo.
+
+Ocupa el 40 % derecho de la portada, que ya está reservado: el texto nunca se
+mete en esa franja. Mientras el archivo no esté, ahí se ve un sello 龍 tenue
+para que el hueco no quede vacío. En celular el dragón pasa al fondo, atenuado,
+para no estorbar la lectura.
+
+Formato: PNG con fondo transparente. Vertical le queda mejor que apaisado.
 
 ## Cómo abrirlo
 

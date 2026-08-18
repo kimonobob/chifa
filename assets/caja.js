@@ -362,7 +362,7 @@
 
         <hr style="border:0;border-top:1px solid var(--linea);margin:22px 0">
         <p class="eyebrow" style="margin:0 0 8px">Zona de riesgo</p>
-        <button class="btn fantasma" id="borrar-todo" style="border-color:var(--lacado);color:var(--lacado)">Borrar todos los datos</button>
+        <button class="btn fantasma" id="borrar-todo" style="border-color:var(--alerta);color:var(--alerta)">Borrar todos los datos</button>
       </div>`;
 
     $('#guardar-cfg').onclick = () => {
