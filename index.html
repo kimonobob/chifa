@@ -13,7 +13,7 @@
 <link rel="stylesheet" media="print" onload="this.media='all'"
       href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Noto+Serif+SC:wght@700&display=swap">
 
-<link rel="stylesheet" href="assets/portada.css?v=11">
+<link rel="stylesheet" href="assets/portada.css?v=12">
 </head>
 <body>
 
@@ -173,9 +173,9 @@
   </div>
 </div>
 
-<script src="assets/data.js?v=11"></script>
-<script src="assets/nube.js?v=11"></script>
-<script src="assets/store.js?v=11"></script>
+<script src="assets/data.js?v=12"></script>
+<script src="assets/nube.js?v=12"></script>
+<script src="assets/store.js?v=12"></script>
 <script>
   // ── Puerta: elegir el local ───────────────────────────────────────────────
   function pintarSedes() {
@@ -301,8 +301,8 @@
       /* Decir POR QUÉ falló: es la diferencia entre arreglarlo en un minuto
          y quedarse mirando un botón que no funciona. */
       return aviso(
-        /42P01|does not exist/i.test(r.motivo)
-          ? 'Conecta, pero faltan las tablas. Corre supabase.sql en el SQL Editor.'
+        /42P01|PGRST205|does not exist|Could not find the table/i.test(r.motivo)
+          ? 'Conecta bien, pero faltan las tablas: corre supabase.sql en el SQL Editor de Supabase.'
           : `No conecta: ${r.motivo}`, 'error');
     }
     const estado = await Store.arrancar();

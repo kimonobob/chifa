@@ -75,7 +75,7 @@ Y en el navegador: <http://127.0.0.1:8787>
 > trabajando con una versión que ya no existe — pasa, y cuesta mucho darse
 > cuenta.
 >
-> Los archivos además llevan un número de versión (`assets/store.js?v=11`). Si
+> Los archivos además llevan un número de versión (`assets/store.js?v=12`). Si
 > algún día tocas los archivos a mano, sube ese número en los cuatro `.html`
 > para que los navegadores recojan la versión nueva. Y si algo se ve raro tras
 > una actualización, recarga con **Ctrl+F5**.
@@ -96,21 +96,21 @@ tienen que apuntar al mismo sitio. Ese sitio es un proyecto de
 2. Pega entero el archivo [supabase.sql](supabase.sql) y dale a **Run**. Crea
    las dos tablas que hacen falta. Se puede volver a correr sin miedo.
 
-**Una sola vez, en el sistema:** abre [assets/nube.js](assets/nube.js) y pega
-arriba del todo, en `FIJO`, las dos cosas que salen en Supabase ›
-Project&nbsp;Settings › API:
+**En el sistema ya está puesto.** Las claves del proyecto viven en `FIJO`,
+arriba de [assets/nube.js](assets/nube.js). Como todos los equipos abren el
+sistema desde el mismo sitio, con eso quedan conectados todos de una vez: no
+hay que tocar la tablet.
 
 ```js
 const FIJO = {
   url:   'https://xxxxxxxx.supabase.co',   // Project URL
-  clave: 'ey…'                             // anon / public key
+  clave: 'sb_publishable_…'                // la clave pública
 };
 ```
 
-Como todos los equipos abren el sistema desde el mismo sitio, con eso quedan
-conectados todos de una vez. Si prefieres probar sin tocar archivos, en la
-portada hay un botón **Sincronizar** donde se pegan esas dos cosas — pero
-entonces hay que hacerlo **en cada equipo**.
+Si algún día cambia el proyecto, se edita ahí. Y en la portada hay un botón
+**Sincronizar** para apuntar **un** equipo a otro sitio, o desconectarlo, sin
+tocar lo que usan los demás.
 
 El chip de la barra de la portada dice cómo está:
 

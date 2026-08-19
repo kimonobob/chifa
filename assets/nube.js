@@ -23,28 +23,36 @@
 
 const Nube = (() => {
 
-  /* ↓↓↓ PEGA ACÁ LAS DOS COSAS DEL PROYECTO DE SUPABASE ↓↓↓
-     Están en el panel de Supabase, en Project Settings › API.
-       url   → Project URL          (https://xxxxxxxx.supabase.co)
-       clave → anon / public key    (una cadena larga que empieza con ey…) */
+  /* El proyecto de Supabase del chifa. Salen del panel de Supabase, en
+     Project Settings › API:
+       url   → Project URL
+       clave → la clave pública (publishable / anon)
+
+     Como todos los equipos abren el sistema desde el mismo sitio, con esto
+     quedan conectados todos de una vez: no hay que tocar la tablet. */
   const FIJO = {
-    url: '',
-    clave: ''
+    url: 'https://mzvxqyubdfcsubulxrko.supabase.co',
+    clave: 'sb_publishable_54yp6eKabxcDrNOnYbfe9A_FHs6sXbp'
   };
 
   const K = 'chifa.nube';
 
+  /* Lo que se haya puesto a mano en este equipo manda sobre lo de arriba: así
+     se puede apuntar un equipo a otro proyecto, o desconectarlo del todo,
+     sin tocar el archivo que usan todos los demás. */
   function config() {
-    if (FIJO.url && FIJO.clave) return FIJO;
     try {
-      const g = JSON.parse(localStorage.getItem(K));
-      return (g && g.url && g.clave) ? g : null;
-    } catch (e) { return null; }
+      const g = localStorage.getItem(K);
+      if (g === 'no') return null;                 // desconectado a propósito
+      const j = g ? JSON.parse(g) : null;
+      if (j && j.url && j.clave) return j;
+    } catch (e) { /* sigue con lo de fábrica */ }
+    return (FIJO.url && FIJO.clave) ? FIJO : null;
   }
 
   function guardarConfig(c) {
     try {
-      if (!c || !c.url) localStorage.removeItem(K);
+      if (!c || !c.url) localStorage.setItem(K, 'no');
       else localStorage.setItem(K, JSON.stringify({
         url: String(c.url).trim().replace(/\/+$/, ''),
         clave: String(c.clave).trim()
