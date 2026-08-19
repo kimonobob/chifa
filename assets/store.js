@@ -28,6 +28,22 @@ const Store = (() => {
     try { localStorage.removeItem(SEDE_KEY); } catch (e) {}
     cache = null;
   }
+  /* ── ¿Hay una pantalla de cocina prendida? ──────────────────────────────
+     La ticketera de comandas está enchufada al equipo de la cocina, y es
+     ese el que saca el papel. La pantalla de cocina deja su latido cada
+     pocos segundos; así el mozo puede avisar cuando la comanda NO va a
+     salir, en vez de dar por impreso un pedido que nadie vio. */
+  const LATIDO = () => `chifa:cocina:${sede()}`;
+  const LATIDO_VIVO = 15000;          // sin señal en 15 s, la damos por apagada
+
+  function latirCocina() {
+    try { localStorage.setItem(LATIDO(), String(Date.now())); } catch (e) {}
+  }
+  function cocinaConectada() {
+    try { return Date.now() - Number(localStorage.getItem(LATIDO()) || 0) < LATIDO_VIVO; }
+    catch (e) { return false; }
+  }
+
   /* ¿El código abre ese local? */
   function codigoValido(id, codigo) {
     const s = typeof SEDES !== 'undefined' && SEDES.find(x => x.id === id);
@@ -631,6 +647,7 @@ const Store = (() => {
     on: cb => { oyentes.add(cb); return () => oyentes.delete(cb); },
     estado: leer, hoy, avisar,
     sede, sedeInfo, entrarSede, salirSede, codigoValido,
+    latirCocina, cocinaConectada,
     carta, plato, editarPlato, mesas, mesasMozo, nuevaMesaLlevar, ordenMesa, minutosPlato,
     platosPendientes, platosEntregados, priorizarItem, desmarcarUnidad,
     grupos, grupoDe, mesasDe, claveCuenta, unirMesas, separarMesas, nombreCuenta, mesaCorta,

@@ -342,13 +342,18 @@
     const { comida, barra } = Store.enviarRonda({
       mesa: llevar.mesa, mozo: Store.config().caja, items: llevar.items
     });
+    /* La comanda sale por la ticketera de la cocina, no por la de la caja:
+       en la caja se imprimen boletas, no papeles de cocina. */
     let impresa = false;
-    if (comida && Store.config().imprimirAlEnviar) impresa = Impresion.imprimirComanda(comida);
+    if (comida && Store.config().imprimirAlEnviar) impresa = Impresion.comandaAuto(comida);
 
     const partes = [llevar.mesa];
     if (comida) partes.push(`N° ${comida.num}${impresa ? ' · comanda impresa' : ' a cocina'}`);
     if (barra) partes.push(`${barra.items.reduce((t, i) => t + i.cant, 0)} bebida(s) a la cuenta`);
     UI.toast(partes.join(' · '), 'ok');
+    if (comida && !impresa && !Store.cocinaConectada()) {
+      UI.toast('La pantalla de cocina está cerrada: la comanda no se imprimió todavía', 'error');
+    }
 
     cerrarLlevar();
     seleccionar(llevar.mesa);   // queda abierta en caja, lista para cobrar
@@ -548,9 +553,10 @@
           ${c.imprimirAlEnviar ? 'Se imprime al enviar el pedido' : 'No se imprime sola'}
         </button>
         <p style="margin:8px 0 0;color:var(--txt-dim);font-size:.86rem;max-width:52ch">
-          Con esto activado, la comanda sale por la impresora en cuanto el mozo
-          manda el pedido, sin depender de que la pantalla de cocina esté abierta.
-          Así trabaja el chifa hoy.
+          Con esto activado, la comanda sale sola en cuanto se manda el pedido.
+          El papel sale siempre por la ticketera de la <b>cocina</b>: al mozo no
+          se le abre ningún diálogo de impresión en la tablet. Qué equipo tiene
+          la ticketera se elige en Ajustes de la pantalla de cocina.
         </p>
 
         <hr style="border:0;border-top:1px solid var(--linea);margin:22px 0">

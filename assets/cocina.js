@@ -243,7 +243,7 @@
     if (!nuevos.length) return;
 
     UI.campana(nuevos.length > 1 ? 2 : 1);
-    if (Store.config().modoImpresion === 'auto') {
+    if (Store.config().modoImpresion === 'auto' && Impresion.imprimeComandas()) {
       const sinImprimir = nuevos.filter(p => !p.impreso);
       if (sinImprimir.length) imprimirLote(sinImprimir);
     } else if (vista() === 'tablero') {
@@ -266,6 +266,9 @@
       $('#tecla').classList.remove('capturando');
     }
     $('#sonido').textContent = `Sonido: ${c.sonido ? 'sí' : 'no'}`;
+    const conTicketera = Impresion.imprimeComandas();
+    $('#equipo-imprime').textContent = `La ticketera está acá: ${conTicketera ? 'sí' : 'no'}`;
+    $('#equipo-imprime').classList.toggle('on', conTicketera);
     $('#letra-valor').textContent = `${Math.round(c.letraCocina * 100)}%`;
     $('#columnas').style.setProperty('--zoom', c.letraCocina);
     $('#vista-uno').style.setProperty('--zoom', c.letraCocina);
@@ -313,6 +316,17 @@
     $('#tecla').textContent = '…';
     $('#tecla').classList.add('capturando');
     UI.toast('Presiona la tecla que quieras usar para imprimir');
+  };
+
+  /* Preferencia de este equipo, no del chifa entero: por eso no pasa por
+     Store.setConfig, que se comparte con las demás pantallas. */
+  $('#equipo-imprime').onclick = () => {
+    const antes = Impresion.imprimeComandas();
+    Impresion.setRolImpresora(antes ? 'no' : 'si');
+    UI.toast(antes
+      ? 'Este equipo ya no saca comandas'
+      : 'Las comandas saldrán por la impresora de este equipo', 'ok');
+    pintarBarra();
   };
 
   $('#sonido').onclick = () => {
@@ -453,10 +467,30 @@
     else if (c.modoImpresion === 'manual') imprimirPendientes();
   });
 
+  /* Lo que llegó con la pantalla cerrada. El mozo ya mandó el pedido y no
+     salió papel; al abrir la cocina se saca lo que quedó sin imprimir. No
+     se duplica nada: recargar la pantalla no reimprime, porque lo impreso
+     ya viene marcado. */
+  function imprimirLoRezagado() {
+    if (Store.config().modoImpresion !== 'auto' || !Impresion.imprimeComandas()) return;
+    const pend = Store.pedidosCocina().filter(p => !p.impreso);
+    if (!pend.length) return;
+    imprimirLote(pend);
+    UI.toast(`${pend.length} comanda${pend.length === 1 ? '' : 's'} que faltaba${pend.length === 1 ? '' : 'n'} imprimir`, 'ok');
+  }
+
   // ── Arranque ─────────────────────────────────────────────────────────────
+  /* El latido le dice al mozo que esta pantalla está prendida y que su
+     comanda va a salir. Sin latido, él ve el aviso en vez de creer que el
+     papel ya está en la cocina. */
+  Store.latirCocina();
+  setInterval(Store.latirCocina, 5000);
+  window.addEventListener('beforeunload', () => { try { localStorage.removeItem(`chifa:cocina:${Store.sede()}`); } catch (e) {} });
+
   pintarBarra();
   pintar();
   tick();
+  imprimirLoRezagado();
   Store.on(() => { pintarBarra(); pintar(); revisarNuevos(); });
   setInterval(tick, 1000);
 })();

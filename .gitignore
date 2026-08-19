@@ -20,3 +20,7 @@ assets/dragon-original.png
 node_modules/
 npm-debug.log*
 package-lock.json
+
+# Bytes crudos que guarda el emulador con --guardar: son de una prueba
+# concreta, no del proyecto.
+emulador/capturas/

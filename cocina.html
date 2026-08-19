@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" media="print" onload="this.media='all'"
       href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Noto+Serif+SC:wght@700&display=swap">
-<link rel="stylesheet" href="assets/app.css?v=9">
+<link rel="stylesheet" href="assets/app.css?v=10">
 </head>
 <body data-app="cocina">
 
@@ -65,6 +65,14 @@
           <button type="button" data-f="comanda">Una comanda por pedido</button>
           <button type="button" data-f="plato">Un papel por plato</button>
         </div>
+
+        <p class="eyebrow">Este equipo</p>
+        <button class="btn chico bloque" id="equipo-imprime">La ticketera está acá: sí</button>
+        <p class="ajustes-nota">
+          Solo el equipo que tiene enchufada la ticketera saca las comandas.
+          En la tablet del mozo esto va apagado, para que no se le abra el
+          diálogo de impresión en pleno salón.
+        </p>
 
         <p class="eyebrow">Pantalla</p>
         <div class="ajustes-fila">
@@ -123,9 +131,9 @@
   <footer><button class="btn primario" id="cerrar-agotados">Listo</button></footer>
 </dialog>
 
-<script src="assets/data.js?v=9"></script>
-<script src="assets/store.js?v=9"></script>
-<script src="assets/print.js?v=9"></script>
+<script src="assets/data.js?v=10"></script>
+<script src="assets/store.js?v=10"></script>
+<script src="assets/print.js?v=10"></script>
 <script>
   /* Sin local elegido no se trabaja: los datos son de un local concreto. */
   (() => {
@@ -136,6 +144,6 @@
   })();
 </script>
 
-<script src="assets/cocina.js?v=9"></script>
+<script src="assets/cocina.js?v=10"></script>
 </body>
 </html>

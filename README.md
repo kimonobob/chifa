@@ -75,7 +75,7 @@ Y en el navegador: <http://127.0.0.1:8787>
 > trabajando con una versión que ya no existe — pasa, y cuesta mucho darse
 > cuenta.
 >
-> Los archivos además llevan un número de versión (`assets/store.js?v=9`). Si
+> Los archivos además llevan un número de versión (`assets/store.js?v=10`). Si
 > algún día tocas los archivos a mano, sube ese número en los cuatro `.html`
 > para que los navegadores recojan la versión nueva. Y si algo se ve raro tras
 > una actualización, recarga con **Ctrl+F5**.
@@ -220,8 +220,31 @@ no hay teclado físico, se ocultan solos.
 ### Cómo trabaja hoy el chifa: con papel
 
 La cocina no mira pantalla, mira comandas impresas. Por eso **la comanda sale
-por la impresora en cuanto el mozo manda el pedido**, sin que nadie tenga que
-tener abierta la pantalla de cocina.
+por la impresora en cuanto se manda el pedido**, sin que nadie tenga que
+apretar nada.
+
+### El papel sale en la cocina, no en la tablet del mozo
+
+La ticketera está enchufada a **un solo equipo**: el de la cocina. Así que es
+ese el que saca las comandas. Al mozo no se le abre ningún diálogo de impresión
+en la tablet: él manda el pedido y sigue atendiendo.
+
+Qué equipo tiene la ticketera se elige en **Cocina › Ajustes › Este equipo**, y
+es una preferencia **de ese equipo**, no del chifa entero: no se contagia a las
+demás pantallas. De fábrica viene prendida solo en la pantalla de cocina.
+
+Si el chifa trabaja todo en una sola computadora y quieres que el papel salga
+desde el panel del mozo, ábrelo una vez con `mozo.html?impresora=si` y queda
+así. Con `?impresora=no` se apaga.
+
+**Si la pantalla de cocina está cerrada**, el mozo ve el aviso *«la comanda no
+se imprimió todavía»* en vez de creer que el papel ya está en la cocina. El
+pedido no se pierde: queda marcado como pendiente y **sale apenas se abra la
+pantalla de cocina**. Recargarla no reimprime nada que ya haya salido.
+
+> Hoy las pantallas se hablan por el navegador del mismo equipo. Para que la
+> tablet del mozo llegue a la computadora de la cocina hace falta el servidor
+> compartido (ver *Lo que este sistema todavía no hace*).
 
 ### Las bebidas no van a cocina
 
@@ -239,12 +262,11 @@ En el ticket, la **mesa y el plato van en letra grande** — la mesa a 46 px y
 enmarcada, el código a 30 px, el nombre a 20 px — para leerlos de un vistazo
 con el papel sobre la barra y las manos ocupadas.
 
-Se apaga o se enciende en *Caja › Ajustes › Comandas de cocina*. Si lo apagas,
-el botón del mozo vuelve a decir «Enviar a cocina» en vez de «Enviar e
-imprimir».
+La impresión automática se apaga o se enciende en *Caja › Ajustes › Comandas de
+cocina*.
 
 La pantalla de cocina sigue acá por si algún día la instalan, y no duplica
-nada: la comanda ya viene marcada como impresa.
+nada: la comanda impresa ya viene marcada como tal.
 
 ### La pantalla, si algún día se usa
 
@@ -327,6 +349,28 @@ El ticket sale formateado para **ticketera térmica de 80 mm**.
 > mandar el papel. No es un problema del sistema: es una protección del
 > navegador y no se puede desactivar desde la página.
 
+### Probar sin impresora: la ticketera emulada
+
+En `emulador/` hay una impresora térmica de mentira: recibe los tickets y los
+saca en un rollo de papel dibujado en la pantalla, con su ancho real de 80 mm.
+
+```
+python emulador/impresora.py --abrir
+```
+
+Después se abre cualquier pantalla con `?emulador=1` una sola vez —por
+ejemplo `http://127.0.0.1:8787/cocina.html?emulador=1`— y desde ahí las
+comandas, precuentas y boletas salen en el rollo virtual en vez de abrir el
+diálogo de impresión. Con `?emulador=0` vuelve a la impresora de verdad, y si
+el emulador no está corriendo el ticket también se va al papel: una comanda
+perdida cuesta más que un susto.
+
+Sus botones apagan el papel, abren la tapa o desconectan la impresora, para
+ver qué hace el sistema cuando la ticketera falla. También escucha en el
+**puerto 9100**, el que usan las ticketeras de red de verdad, por si algún día
+el chifa pasa a imprimir directo con ESC/POS. Todo está explicado en
+[emulador/LEEME.md](emulador/LEEME.md).
+
 ## 3 · Caja
 
 - **Cuentas** — todas las mesas abiertas con su total. Las que todavía tienen
@@ -402,9 +446,11 @@ Otras cosas a tener en cuenta:
 
 - Los datos viven en el `localStorage` de ese navegador. Si borras los datos de
   navegación, se van. Exporta el CSV al cerrar el día.
-- La impresión automática solo ocurre con la pantalla de cocina abierta: es ella
-  la que manda a imprimir.
-- Si abres dos pantallas de cocina, las dos van a imprimir la misma comanda.
+- La impresión automática ocurre en el equipo que tiene la ticketera —la
+  pantalla de cocina—, así que esa pantalla tiene que estar abierta. Si está
+  cerrada, el mozo recibe el aviso y la comanda sale apenas se abra.
+- Si abres dos pantallas de cocina con la ticketera prendida en ambas, las dos
+  van a imprimir la misma comanda. Apaga *Este equipo* en la que sobre.
 - La boleta no es un comprobante electrónico válido ante SUNAT. Para facturación
   electrónica hace falta integrar un proveedor autorizado (OSE/PSE).
 
@@ -425,4 +471,10 @@ assets/
   cocina.js         tablero, cronómetros, impresión manual/automática
   caja.js           cobro, ventas del día, editor de carta
   app.css           diseño de las tres pantallas + formato de ticket 80 mm
+servir.py           servidor local, sin caché
+emulador/           ticketera térmica de mentira, para probar
+  impresora.py      puerto 9100 (ESC/POS) + visor del rollo en el 8788
+  escpos.py         intérprete de ESC/POS
+  rollo.html/css/js el papel saliendo en pantalla
+  probar.py         tickets de ejemplo, acá o a una impresora real
 ```

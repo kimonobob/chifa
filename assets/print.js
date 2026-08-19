@@ -5,6 +5,64 @@
 
 const Impresion = (() => {
 
+  /* ── Ticketera emulada (emulador/impresora.py) ─────────────────────────
+     Para probar sin gastar papel ni tener la máquina delante: con el
+     emulador encendido, el ticket se le manda a él y sale en el rollo de
+     la pantalla en vez de abrir el diálogo del navegador.
+        ...cocina.html?emulador=1   lo prende (y queda prendido en ese equipo)
+        ...cocina.html?emulador=0   lo apaga y vuelve a la impresora
+     Si el emulador no está levantado, la impresión se va al papel de
+     verdad: una comanda perdida cuesta más que un susto.                 */
+  const EMULADOR = 'http://127.0.0.1:8788';
+
+  (() => {
+    const p = new URLSearchParams(location.search).get('emulador');
+    if (p === '1') localStorage.setItem('chifa.emulador', '1');
+    if (p === '0') localStorage.removeItem('chifa.emulador');
+  })();
+
+  const emulando = () => localStorage.getItem('chifa.emulador') === '1';
+
+  /* ── Qué equipo saca las comandas ──────────────────────────────────────
+     La ticketera de cocina está enchufada a UN equipo. Cuando el mozo
+     manda el pedido desde su tablet, el papel tiene que salir allá, no
+     abrirle a él un diálogo de impresión en medio del salón.
+
+     Por eso esto es una preferencia DEL EQUIPO y no se comparte con los
+     demás: por defecto imprime la pantalla de cocina y nadie más. Si el
+     chifa trabaja todo en una sola computadora, se le prende acá:
+        ...mozo.html?impresora=si    este equipo sí saca las comandas
+        ...cocina.html?impresora=no  este equipo no saca ninguna
+     Esto solo manda sobre la impresión automática. Boletas, precuentas y
+     copias salen siempre donde se aprieta el botón: si lo apretaste, es
+     porque quieres el papel en la mano.                                  */
+  const ROL = 'chifa.impresora';
+  const rolPorDefecto = () => /cocina/i.test(location.pathname) ? 'si' : 'no';
+
+  (() => {
+    const p = new URLSearchParams(location.search).get('impresora');
+    if (p === 'si' || p === 'no') localStorage.setItem(ROL, p);
+  })();
+
+  function rolImpresora() {
+    try { return localStorage.getItem(ROL) || rolPorDefecto(); }
+    catch (e) { return rolPorDefecto(); }
+  }
+  function setRolImpresora(v) {
+    try { localStorage.setItem(ROL, v === 'si' ? 'si' : 'no'); } catch (e) {}
+  }
+  const imprimeComandas = () => rolImpresora() === 'si';
+
+  function alEmulador(html) {
+    // Texto plano a propósito: así el navegador no pide permiso previo
+    // (preflight) para mandar el ticket al otro puerto.
+    return fetch(`${EMULADOR}/ticket`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: JSON.stringify({ html, titulo: document.title })
+    }).then(r => r.json());
+  }
+
   function zona() {
     let z = document.getElementById('zona-impresion');
     if (!z) {
@@ -15,7 +73,7 @@ const Impresion = (() => {
     return z;
   }
 
-  function imprimir(html) {
+  function aPapel(html) {
     const z = zona();
     z.innerHTML = html;
     // Un frame para que el navegador aplique estilos antes de abrir el diálogo.
@@ -23,6 +81,20 @@ const Impresion = (() => {
       window.print();
       setTimeout(() => { z.innerHTML = ''; }, 800);
     });
+  }
+
+  function imprimir(html) {
+    if (!emulando()) return aPapel(html);
+    alEmulador(html)
+      .then(r => {
+        // La ticketera emulada puede estar sin papel o con la tapa abierta:
+        // así se prueba qué pasa cuando la de verdad lo esté.
+        if (!r.ok && window.UI) UI.toast(`La ticketera no imprimió: ${r.motivo}`, 'error');
+      })
+      .catch(() => {
+        if (window.UI) UI.toast('Emulador apagado: el ticket va a la impresora', 'error');
+        aPapel(html);
+      });
   }
 
   const cab = () => {
@@ -199,8 +271,9 @@ const Impresion = (() => {
     </div>`;
   }
 
-  return {
+  const api = {
     imprimir,
+    imprimeComandas, rolImpresora, setRolImpresora,
     comanda, comandaPorPlato, ticketPlato, precuenta, boleta, cierre,
     /* Un solo plato de la cola: lo que usa la vista "uno por uno". */
     imprimirPlato(p, item, unidad) {
@@ -227,6 +300,17 @@ const Impresion = (() => {
       return true;
     },
     imprimirBoleta(v) { imprimir(boleta(v)); },
-    imprimirCierre(dia) { imprimir(cierre(dia)); }
+    imprimirCierre(dia) { imprimir(cierre(dia)); },
+
+    /* Comanda automática, la del pedido recién mandado: sale únicamente en
+       el equipo que tiene la ticketera de cocina. En cualquier otro
+       devuelve false sin abrir nada, y el pedido queda sin marcar como
+       impreso para que la cocina lo saque cuando le llegue. */
+    comandaAuto(p, opts) {
+      if (!imprimeComandas()) return false;
+      return api.imprimirComanda(p, opts);
+    }
   };
+
+  return api;
 })();

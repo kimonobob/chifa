@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ticketera emulada · Cuatro Dragones</title>
+<link rel="stylesheet" href="rollo.css">
+<!-- Las reglas del ticket salen del propio app.css del sistema (del bloque
+     @media print). El emulador no imita el papel: usa el mismo estilo. -->
+<link rel="stylesheet" href="ticket.css">
+</head>
+<body>
+
+<header class="barra">
+  <div class="marca">
+    <span class="chapa">80</span>
+    <div>
+      <h1>Ticketera emulada</h1>
+      <p id="linea-puertos">visor 8788 · ESC/POS 9100</p>
+    </div>
+  </div>
+
+  <div class="estado" id="estado">
+    <button class="chip" id="c-enlinea" data-campo="enlinea">en línea</button>
+    <button class="chip" id="c-papel"   data-campo="papel">con papel</button>
+    <button class="chip" id="c-tapa"    data-campo="tapa">tapa cerrada</button>
+    <button class="chip" id="c-ancho">80 mm</button>
+    <span class="chip fijo" id="c-cajon" title="veces que se abrió el cajón">cajón 0</span>
+    <span class="chip fijo" id="c-enlace">conectando…</span>
+  </div>
+
+  <div class="acciones">
+    <button class="btn" id="b-sonido" aria-pressed="true">🔊 sonido</button>
+    <button class="btn" id="b-seguir" aria-pressed="true">↓ seguir</button>
+    <button class="btn" id="b-prueba">ticket de prueba</button>
+    <button class="btn peligro" id="b-limpiar">limpiar rollo</button>
+  </div>
+</header>
+
+<main>
+  <!-- El rollo: el papel sale por acá, de arriba hacia abajo. -->
+  <section class="rollo" id="rollo">
+    <div class="cabezal" aria-hidden="true"></div>
+    <div class="tira" id="tira"></div>
+    <p class="vacio" id="vacio">
+      No ha salido nada todavía.<br>
+      Manda un pedido desde el sistema, o dale a <b>ticket de prueba</b>.
+    </p>
+  </section>
+
+  <!-- Registro: qué llegó, por dónde y con qué bytes. -->
+  <aside class="registro">
+    <h2>Trabajos</h2>
+    <ol id="lista"></ol>
+  </aside>
+</main>
+
+<div class="aviso-cajon" id="aviso-cajon" hidden>CAJÓN ABIERTO</div>
+
+<script src="rollo.js"></script>
+</body>
+</html>

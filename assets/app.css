@@ -571,6 +571,11 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
 .ajustes-fila { display: flex; align-items: center; gap: 10px; }
 .ajustes-fila span { flex: 1; text-align: center; font-family: var(--mono); font-size: .9rem; }
 .btn.bloque { width: 100%; }
+/* El botón de "la ticketera está acá" se ve prendido cuando lo está. */
+.ajustes-panel .btn.on {
+  background: var(--acento); color: var(--acento-txt); border-color: var(--acento);
+}
+.ajustes-nota { margin: -2px 0 0; font-size: .76rem; line-height: 1.4; color: var(--txt-dim); }
 .tecla-vista #tecla-hace { text-transform: none; letter-spacing: 0; font-size: .82rem; }
 .tecla-vista {
   display: inline-flex; align-items: center; gap: 8px;

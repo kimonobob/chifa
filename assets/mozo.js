@@ -652,12 +652,16 @@
     st.borradores[st.mesa] = [];
     guardarBorradores();
 
-    /* La cocina del chifa trabaja con papel, no con pantalla: la comanda
-       sale acá mismo, al mandar el pedido. Queda marcada como impresa, así
-       que si además hay pantalla de cocina abierta, no la duplica. */
+    /* La cocina del chifa trabaja con papel, no con pantalla. Pero el papel
+       sale por la ticketera de la COCINA: acá no se abre ningún diálogo de
+       impresión, que el mozo está en el salón con la tablet en la mano.
+       Si este equipo resulta ser el de la impresora, entonces sí sale acá. */
     let impresa = false;
+    let sinCocina = false;
     if (comida && Store.config().imprimirAlEnviar) {
-      impresa = Impresion.imprimirComanda(comida);
+      impresa = Impresion.comandaAuto(comida);
+      // Nadie del otro lado: mejor avisarle ahora que dar el pedido por bueno.
+      sinCocina = !impresa && !Store.cocinaConectada();
     }
 
     const partes = [];
@@ -667,6 +671,9 @@
       partes.push(`${n} bebida${n === 1 ? '' : 's'} a la cuenta`);
     }
     UI.toast(partes.join(' · '), 'ok');
+    if (sinCocina) {
+      UI.toast('La pantalla de cocina está cerrada: la comanda no se imprimió todavía', 'error');
+    }
 
     pintarPedido();
     pintarCabecera();
@@ -768,7 +775,11 @@
     const sinNada = !st.mesa || !items.length;
     $('#enviar').disabled = sinNada;
     $('#enviar-pad').disabled = sinNada;
-    const etq = Store.config().imprimirAlEnviar ? 'Enviar e imprimir' : 'Enviar a cocina';
+    /* "Enviar e imprimir" solo si el papel va a salir de ESTE equipo; si no,
+       el botón no promete una impresión que ocurre en la cocina. */
+    const etq = Store.config().imprimirAlEnviar && Impresion.imprimeComandas()
+      ? 'Enviar e imprimir'
+      : 'Enviar a cocina';
     $('#enviar').textContent = etq;
     $('#enviar-pad').textContent = sinNada
       ? etq
