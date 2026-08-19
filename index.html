@@ -169,6 +169,7 @@
 
     <div class="quien-pie">
       <button class="btn fantasma" id="quien-volver">Cambiar de local</button>
+      <button class="btn desnudo" id="borrar-cuentas">¿Perdiste el PIN del dueño?</button>
     </div>
   </div>
 </div>
@@ -440,6 +441,44 @@
   document.getElementById('quien-volver').onclick = () => {
     Store.salirSede();
     revisarPuerta();
+  };
+
+  /* Empezar de cero con las cuentas. Hace falta porque el PIN del dueño está
+     cifrado y no se puede recuperar: sin esta salida, olvidarlo dejaría el
+     local sin panel para siempre.
+
+     Pide el código del local, que es lo que ya hizo falta para entrar acá.
+     No protege más que eso —y no pretende hacerlo—, pero evita que alguien
+     borre el equipo entero de un toque por curiosidad. Los pedidos, las
+     ventas y la carta no se tocan: solo las cuentas. */
+  document.getElementById('borrar-cuentas').onclick = () => {
+    const s = Store.sedeInfo();
+    if (!s) return;
+    let cuantas = 0;
+    pedirPin(
+      `Código de ${s.nombre}`,
+      codigo => {
+        if (!Store.codigoValido(s.id, codigo)) {
+          return { ok: false, motivo: 'Ese no es el código del local' };
+        }
+        cuantas = Store.usuarios().length;
+        Store.borrarUsuarios();
+        return { ok: true };
+      },
+      /* Va acá y no en la comprobación: revisarPuerta() corre en medio, y sin
+         cuentas creadas esconde esta puerta. Hay que volver a abrirla después. */
+      () => {
+        pintarQuien();
+        document.getElementById('quien').hidden = false;
+        const msg = document.getElementById('primero-msg');
+        msg.textContent = `Se borraron ${cuantas} cuenta${cuantas === 1 ? '' : 's'}. ` +
+          'Los pedidos y las ventas del día siguen ahí. Crea la del dueño.';
+        msg.className = 'nube-msg ok';
+        msg.hidden = false;
+        const n = document.getElementById('primero-nombre');
+        if (n) n.focus();
+      }
+    );
   };
 
   document.getElementById('form-primero').addEventListener('submit', e => {

@@ -81,8 +81,17 @@ separar oficios, en el panel de locales está el botón **Admin · soy el dueño
 la primera vez crea la cuenta del dueño, y a partir de ahí ya se puede dar de
 alta al resto desde el panel.
 
-> Guarda bien el PIN del dueño. Si se pierde, la única salida es borrar los
-> datos del local y empezar de nuevo.
+### Si se pierde el PIN del dueño
+
+El PIN está cifrado y **no hay forma de recuperarlo**. Para esos casos, en la
+puerta de *¿Quién entra?* hay abajo un **¿Perdiste el PIN del dueño?**: pide el
+**código del local** (el mismo que ya hizo falta para llegar ahí) y borra
+**todas las cuentas**, dejando el local como recién instalado para volver a
+crear la del dueño.
+
+**No toca los pedidos, las ventas ni la carta** — solo las cuentas. El código
+del local no protege gran cosa, y no pretende hacerlo; pero evita que se borre
+el equipo entero de un toque por curiosidad.
 
 ### Qué es esto y qué no
 

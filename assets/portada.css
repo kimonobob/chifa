@@ -509,7 +509,18 @@ a:hover { color: var(--oro-claro); }
   font-family: var(--mono); font-size: clamp(8px, calc(var(--esc) * .85), 11px);
   letter-spacing: .16em; text-transform: uppercase; color: var(--oro);
 }
-.quien-pie { margin-top: clamp(16px, 3vh, 30px); }
+.quien-pie {
+  margin-top: clamp(16px, 3vh, 30px);
+  display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap;
+}
+/* La salida por si se pierde el PIN del dueño: tiene que estar, pero sin
+   invitar a tocarla. */
+.quien-pie .btn.desnudo {
+  background: none; border: 0; padding: 6px; cursor: pointer;
+  font-family: var(--mono); font-size: clamp(10px, calc(var(--esc) * 1), 12px);
+  letter-spacing: .06em; color: rgba(246,229,207,.45); text-transform: none;
+}
+.quien-pie .btn.desnudo:hover { color: var(--oro); text-decoration: underline; }
 .quien-pie .btn {
   padding: 10px 18px; cursor: pointer; border-radius: 3px;
   background: transparent; border: 1px solid rgba(232,180,74,.4);

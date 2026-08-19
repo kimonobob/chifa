@@ -514,6 +514,19 @@ const Store = (() => {
     return { ok: true };
   }
 
+  /* Borra TODAS las cuentas y deja el local como recién instalado: se sigue
+     trabajando igual y la del dueño se vuelve a crear desde el botón de
+     Admin. Los pedidos, las ventas y la carta no se tocan.
+
+     Existe porque el PIN del dueño está cifrado y no hay forma de
+     recuperarlo. Sin esta salida, olvidarlo dejaría el local sin panel para
+     siempre, y la única salida sería borrar la noche de trabajo entera. */
+  function borrarUsuarios() {
+    mutar(s => { s.usuarios = []; });
+    salir();
+    return { ok: true };
+  }
+
   // ── La sesión de este equipo ─────────────────────────────────────────────
   const CLAVE_SESION = () => `chifa:sesion:${sede()}`;
 
@@ -1219,7 +1232,7 @@ const Store = (() => {
     /* Usuarios, permisos y reportes del dueño */
     PERMISOS, NOMBRE_ROL, sha256,
     usuarios, usuario, hayUsuarios, hayAdmin,
-    crearUsuario, editarUsuario, borrarUsuario,
+    crearUsuario, editarUsuario, borrarUsuario, borrarUsuarios,
     sesion, ingresar, ingresarAdmin, salir, puede, quienSoy,
     resumenDias, ranking, porMozo, ventasPorHora, minutosCocina, mesasOlvidadas, diaDe
   };
