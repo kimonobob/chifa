@@ -495,6 +495,32 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
 }
 .nota-chip.on { background: var(--tinta); color: var(--arroz); border-color: var(--tinta); }
 
+/* ── Bebidas a un toque, bajo el teclado y las notas ──────────────────────
+   Aprovecha el hueco que quedaba ahí. Un toque en la categoría, un toque en
+   la bebida, y ya está en la cuenta: ninguna pasa por cocina. */
+.bebidas { border-top: 1px solid var(--linea); padding: 12px 18px 14px; }
+.beb-cab { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.beb-cab .eyebrow { margin: 0; flex: 0 0 auto; }
+/* El min-width: 0 es el que deja que la fila haga su propio scroll en vez de
+   estirar la columna entera. */
+.beb-cats { display: flex; gap: 6px; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
+.beb-cats .cat-chip { flex: 0 0 auto; }
+.beb-chips {
+  display: flex; flex-wrap: wrap; align-content: flex-start; gap: 7px;
+  max-height: 178px; overflow-y: auto; scrollbar-width: thin;
+}
+.beb-chip {
+  display: inline-flex; align-items: baseline; gap: 9px; max-width: 100%;
+  padding: 10px 14px; text-align: left; line-height: 1.2;
+  background: var(--panel); border: 1px solid var(--linea);
+  border-radius: 100px; font-size: .9rem;
+}
+.beb-chip .bn { min-width: 0; }
+.beb-chip .bp { flex: 0 0 auto; font-family: var(--mono); font-size: .8rem; color: var(--txt-dim); }
+.beb-chip:active { background: var(--tinta); color: var(--laton-cla); border-color: var(--tinta); }
+.beb-chip:active .bp { color: var(--laton-cla); }
+.beb-chip.agotado { opacity: .4; text-decoration: line-through; }
+
 /* Atajos de teclado, al final de la columna */
 .atajos {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px;
@@ -813,12 +839,17 @@ kbd.capturando { border-color: var(--alerta); color: var(--alerta); animation: l
   display: flex; gap: 8px; justify-content: flex-end;
   padding: 12px 18px; border-top: 1px solid var(--linea);
 }
+/* Los `minmax(0, …)` y los `min-width: 0` no son adorno: sin ellos, una
+   columna de rejilla nunca baja de lo que mide su contenido, y la fila de
+   categorías —que es larguísima, aunque tenga su propio scroll— estiraba la
+   columna izquierda a 1740 px dentro de una ventana de 940. El código, el
+   buscador, las categorías y los platos se salían todos por la derecha. */
 .llevar-cuerpo {
-  display: grid; grid-template-columns: 1.15fr 1fr;
+  display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   flex: 1; min-height: 0;
 }
 .llevar-carta {
-  display: flex; flex-direction: column; min-height: 0;
+  display: flex; flex-direction: column; min-height: 0; min-width: 0;
   border-right: 1px solid var(--linea);
 }
 .llevar-codigo { display: flex; gap: 8px; align-items: center; padding: 12px 14px 0; }
@@ -848,7 +879,7 @@ kbd.capturando { border-color: var(--alerta); color: var(--alerta); animation: l
 .llevar-carta > input#llevar-buscar { margin: 10px 14px 8px; font-size: 1rem; padding: 10px 13px; }
 .llevar-carta .lista-cats { border-top: 1px solid var(--linea); }
 .llevar-resultados { flex: 1; overflow-y: auto; min-height: 0; }
-.llevar-pedido { display: flex; flex-direction: column; min-height: 0; background: var(--panel-2); }
+.llevar-pedido { display: flex; flex-direction: column; min-height: 0; min-width: 0; background: var(--panel-2); }
 .llevar-lineas { flex: 1; overflow-y: auto; min-height: 0; }
 .llevar-total {
   display: flex; align-items: baseline; justify-content: space-between;

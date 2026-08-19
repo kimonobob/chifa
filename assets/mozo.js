@@ -618,10 +618,17 @@
   // ── Borrador del pedido ──────────────────────────────────────────────────
   function agregar() {
     if (!st.buf) return;            // nada marcado: sin ruido
-    if (!st.mesa) return UI.toast('Elige la mesa primero', 'error');
     const p = platoActual();
     if (!p) return UI.toast('Ese código no está en la carta', 'error');
-    if (p.out) return UI.toast(`${p.n} está agotado`, 'error');
+    if (!sumarAlPedido(p)) return;
+    limpiarCodigo();                // el lector queda en blanco para el siguiente
+  }
+
+  /* Lo que hace agregar, sin el lector de códigos: lo comparten el teclado y
+     los botones de bebidas. Devuelve si se pudo. */
+  function sumarAlPedido(p) {
+    if (!st.mesa) { UI.toast('Elige la mesa primero', 'error'); return false; }
+    if (p.out) { UI.toast(`${p.n} está agotado`, 'error'); return false; }
 
     const notas = notasTexto();
     const items = borrador();
@@ -635,11 +642,57 @@
 
     guardarBorradores();
     UI.toast(`${st.cant} × ${p.n}${st.tamano === 'F' ? ' familiar' : ''}`, 'ok');
-    limpiarCodigo();                // el lector queda en blanco para el siguiente
     setCant(1);
     limpiarNotas();
     pintarPedido();
+    return true;
   }
+
+  // ── Bebidas a un toque ───────────────────────────────────────────────────
+  /* Las bebidas no se piden por número: nadie se sabe que la Inca Kola de 2,5
+     litros es el 241. Van acá abajo, por categoría y a un solo toque. No
+     pasan por cocina: se suman a la cuenta y las sirve el mozo. */
+  const NOMBRE_CAT = {
+    infusiones: 'Infusiones', jarras: 'Jarras y limonadas', gaseosas: 'Gaseosas y aguas',
+    cervezas: 'Cervezas', cocteles: 'Cócteles y vinos'
+  };
+  let catBebida = null;
+
+  const bebidas = () => Store.carta().filter(p => p.bar);
+
+  function pintarBebidas() {
+    const lista = bebidas();
+    const cats = [];
+    lista.forEach(p => { if (!cats.includes(p.cat)) cats.push(p.cat); });
+    if (!cats.length) return;
+    if (!cats.includes(catBebida)) catBebida = cats[0];
+
+    $('#beb-cats').innerHTML = cats.map(c =>
+      `<button type="button" class="cat-chip ${c === catBebida ? 'on' : ''}" data-bc="${UI.esc(c)}">
+        ${UI.esc(NOMBRE_CAT[c] || c)}
+      </button>`).join('');
+
+    $('#beb-chips').innerHTML = lista.filter(p => p.cat === catBebida).map(p => `
+      <button type="button" class="beb-chip ${p.out ? 'agotado' : ''}" data-beb="${p.c}"
+              ${p.out ? 'disabled' : ''} title="${UI.esc(p.n)}">
+        <span class="bn">${UI.esc(p.n)}</span>
+        <span class="bp dinero">${p.p.toFixed(2)}</span>
+      </button>`).join('');
+  }
+
+  $('#beb-cats').addEventListener('click', e => {
+    const b = e.target.closest('[data-bc]');
+    if (!b) return;
+    catBebida = b.dataset.bc;
+    pintarBebidas();
+  });
+
+  $('#beb-chips').addEventListener('click', e => {
+    const b = e.target.closest('[data-beb]');
+    if (!b) return;
+    const p = Store.plato(Number(b.dataset.beb));
+    if (p) sumarAlPedido(p);
+  });
 
   function enviar() {
     const items = borrador();
@@ -845,6 +898,7 @@
 
   pintarRueda();
   irASalon();
+  pintarBebidas();
 
   /* La rueda solo se rearma si la carta cambió (agotados, precios): rearmarla
      en cada pedido nuevo le movería el scroll al mozo mientras marca. */
@@ -860,6 +914,7 @@
       firmaCarta = firma;
       pintarRueda();
       pintarLector();
+      pintarBebidas();          // precios y agotados de la barra
       if (st.buf) centrar(Number(st.buf), false);
     }
   });
