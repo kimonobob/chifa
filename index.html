@@ -119,16 +119,6 @@
       <span class="desc">Cobra la mesa, agrega gaseosas y cierra el día.</span>
       <span class="dato" id="dato-caja">—</span>
     </a>
-
-    <a class="opcion" href="admin.html" data-permiso="admin" hidden>
-      <span class="cab">
-        <span class="num">04</span>
-        <span class="han">主</span>
-      </span>
-      <span class="titulo">ADMIN</span>
-      <span class="desc">Reportes del día y la semana, platos más pedidos y quién entra.</span>
-      <span class="dato" id="dato-admin">—</span>
-    </a>
   </nav>
 
   <footer class="pie">
@@ -387,11 +377,11 @@
     document.getElementById('marca-sede').textContent =
       s ? s.nombre.toUpperCase() : 'SISTEMA DE SALÓN';
 
-    // Cada pantalla se ve solo si el puesto de quien entró la alcanza.
+    /* Cada pantalla se ve solo si el puesto de quien entró la alcanza. Acá
+       van las tres de trabajo y nada más: al panel del dueño se entra por el
+       botón de Admin, en la puerta del local. */
     document.querySelectorAll('.opcion').forEach(a => {
-      const permiso = a.dataset.permiso || a.getAttribute('href').replace('.html', '');
-      const alcanza = dentro && Store.puede(permiso);
-      a.hidden = !alcanza && !!a.dataset.permiso;   // Admin ni siquiera aparece
+      const alcanza = dentro && Store.puede(a.getAttribute('href').replace('.html', ''));
       a.style.pointerEvents = alcanza ? '' : 'none';
       a.style.opacity = alcanza ? '' : '.28';
     });
@@ -473,7 +463,7 @@
   // ── El teclado del PIN ───────────────────────────────────────────────────
   /* Numérico y grande: esto se marca con el dedo en una tablet, de pie y con
      el salón lleno. */
-  let pinBuf = '', pinComprobar = null;
+  let pinBuf = '', pinComprobar = null, pinDespues = null;
 
   document.getElementById('pin-pad').innerHTML =
     ['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', '✓']
@@ -486,9 +476,12 @@
         `<span class="${i < pinBuf.length ? 'lleno' : ''}"></span>`).join('');
   }
 
-  function pedirPin(quien, comprobar) {
+  /* `despues` es lo que pasa al acertar. El dueño, por ejemplo, entra
+     derecho a su panel: para eso apretó Admin. */
+  function pedirPin(quien, comprobar, despues) {
     pinBuf = '';
     pinComprobar = comprobar;
+    pinDespues = despues || null;
     document.getElementById('pin-quien').textContent = quien;
     document.getElementById('pin-msg').hidden = true;
     document.getElementById('pin-panel').hidden = false;
@@ -499,14 +492,17 @@
     document.getElementById('pin-panel').hidden = true;
     pinBuf = '';
     pinComprobar = null;
+    pinDespues = null;
   }
 
   function probarPin() {
     if (!pinComprobar) return;
     const r = pinComprobar(pinBuf);
     if (r && r.ok) {
+      const despues = pinDespues;
       cerrarPin();
       revisarPuerta();
+      if (despues) despues();
       return;
     }
     const msg = document.getElementById('pin-msg');
@@ -559,7 +555,8 @@
       if (n) n.focus();
       return;
     }
-    pedirPin('Dueño', pin => Store.ingresarAdmin(pin));
+    pedirPin('Dueño', pin => Store.ingresarAdmin(pin),
+             () => { location.href = 'admin.html'; });
   };
 
   /* Los tres datos de las tarjetas salen del estado real del chifa. */
@@ -585,12 +582,6 @@
     document.getElementById('dato-caja').textContent = Store.puede('dinero')
       ? `${UI.soles(r.total)} · ${r.ventas} cuenta${r.ventas === 1 ? '' : 's'}`
       : `${r.ventas} cuenta${r.ventas === 1 ? '' : 's'} cobrada${r.ventas === 1 ? '' : 's'}`;
-
-    const admin = document.getElementById('dato-admin');
-    if (admin) {
-      const gente = Store.usuarios().filter(u => u.activo).length;
-      admin.textContent = `${UI.soles(r.total)} hoy · ${gente} en el equipo`;
-    }
 
     pintarPendientes(cuentas);
   }

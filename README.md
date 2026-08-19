@@ -10,7 +10,7 @@ internet.
 | Mozo | `mozo.html` | Marca el código, elige mesa, manda a cocina |
 | Cocina | `cocina.html` | Ve las comandas e imprime |
 | Caja | `caja.html` | Cobra, vende bebidas, cierra el día |
-| Admin | `admin.html` | Reportes del dueño y alta de gente |
+| Admin | `admin.html` | Reportes del dueño y alta de gente (se entra por la puerta del local) |
 
 `index.html` es la portada con las tres opciones y un resumen en vivo. Entra
 completa **en una sola pantalla, sin scroll**, tanto en monitor como en celular.
@@ -94,8 +94,12 @@ tomó cada mesa — no para proteger nada de alguien decidido.
 
 ## El panel del dueño
 
-`admin.html`, cuarta tarjeta de la portada. Solo la ve quien tiene el puesto de
-dueño. Cuatro pestañas:
+`admin.html`. **No aparece entre las pantallas de la portada**: esa zona es
+para los tres oficios del salón y nada más. Al panel se entra por el botón
+**Admin · soy el dueño**, en la puerta donde se elige el local — se marca el
+PIN y lleva derecho ahí.
+
+Cuatro pestañas:
 
 - **Hoy** — cuánto entró, cuántas cuentas, ticket promedio y descuentos; el
   reparto por medio de pago y **por mozo**; y la lista de las cuentas cobradas.
