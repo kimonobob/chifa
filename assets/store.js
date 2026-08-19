@@ -22,11 +22,19 @@ const Store = (() => {
   function entrarSede(id) {
     try { localStorage.setItem(SEDE_KEY, id); } catch (e) { /* sin persistencia */ }
     cache = null;
+    /* Se entra a otro local: lo que se sabía del anterior no sirve de nada. */
+    revNube = 0;
+    pendientes = [];
+    presenciaNube = [];
     avisar('cambio');
+    return arrancar();
   }
   function salirSede() {
     try { localStorage.removeItem(SEDE_KEY); } catch (e) {}
     cache = null;
+    revNube = 0;
+    pendientes = [];
+    presenciaNube = [];
   }
   /* ── ¿Hay una pantalla de cocina prendida? ──────────────────────────────
      La ticketera de comandas está enchufada al equipo de la cocina, y es
@@ -38,10 +46,30 @@ const Store = (() => {
 
   function latirCocina() {
     try { localStorage.setItem(LATIDO(), String(Date.now())); } catch (e) {}
+    latirEquipo();
+  }
+
+  /* La misma marca, pero para los demás equipos del local, que no comparten
+     este navegador. Cada pantalla dice cuál es y si tiene la ticketera. */
+  function latirEquipo() {
+    if (!enNube() || !sede()) return;
+    const pantalla = (document.body && document.body.dataset.app) || 'portada';
+    const ticketera = typeof Impresion !== 'undefined' && Impresion.imprimeComandas();
+    Nube.latir(sede(), pantalla, ticketera).catch(() => {});
   }
   function cocinaConectada() {
-    try { return Date.now() - Number(localStorage.getItem(LATIDO()) || 0) < LATIDO_VIVO; }
-    catch (e) { return false; }
+    try {
+      if (Date.now() - Number(localStorage.getItem(LATIDO()) || 0) < LATIDO_VIVO) return true;
+    } catch (e) { /* sigue con la nube */ }
+    /* Un margen ancho a propósito: los relojes de la tablet y de la
+       computadora nunca están exactamente iguales, y equivocarse acá
+       significa asustar al mozo con una comanda que sí se imprimió. */
+    return presenciaNube.some(p =>
+      p.pantalla === 'cocina' && Date.now() - Date.parse(p.visto) < 40000);
+  }
+  /* Qué pantallas hay abiertas en el local, para verlo desde la portada. */
+  function equiposConectados() {
+    return presenciaNube.filter(p => Date.now() - Date.parse(p.visto) < 40000);
   }
 
   /* ¿El código abre ese local? */
@@ -102,7 +130,8 @@ const Store = (() => {
 
   function escribir(s) {
     cache = s;
-    localStorage.setItem(clave(), JSON.stringify(s));
+    try { localStorage.setItem(clave(), JSON.stringify(s)); }
+    catch (e) { /* sin persistencia: al menos sigue en memoria */ }
   }
 
   /* Toda mutación relee del disco primero: si otra pestaña escribió mientras
@@ -112,8 +141,208 @@ const Store = (() => {
     const s = leer();
     const r = fn(s);
     escribir(s);
+    if (enNube()) { pendientes.push(fn); marcarSucio(true); empujar(); }
     avisar('cambio');
     return r;
+  }
+
+  /* ══ Sincronización entre equipos ═══════════════════════════════════════
+     Sin esto, cada navegador guardaba lo suyo y el mozo veía unas mesas y la
+     caja otras. Acá el estado del local vive en un solo sitio y todos los
+     equipos leen y escriben ahí.
+
+     Se trabaja SIEMPRE contra la copia local, que es la que responde al
+     instante y la que permite seguir atendiendo si se cae el internet. La
+     nube va detrás: recibe lo que se hizo y trae lo que hicieron los demás.
+     Un chifa no puede dejar de tomar pedidos porque se cortó el wifi.    */
+
+  let revNube = 0;            // revisión que la nube tenía la última vez
+  let pendientes = [];        // mutaciones hechas acá y aún no confirmadas
+  let empujando = false;
+  let sonda = null;
+  let vueltas = 0;
+  let conexion = 'local';     // 'local' | 'nube' | 'sin-conexion'
+  let presenciaNube = [];
+
+  const enNube = () => typeof Nube !== 'undefined' && Nube.activa();
+  const estadoConexion = () => conexion;
+
+  /* La marca de "hay cambios sin subir" vive en el disco, no en memoria: si
+     el equipo se recarga estando sin internet, al volver hay que saber que
+     lo suyo todavía no llegó a ningún lado. */
+  const CLAVE_SUCIO = () => `chifa:sucio:${sede()}`;
+  function marcarSucio(v) {
+    try {
+      if (v) localStorage.setItem(CLAVE_SUCIO(), '1');
+      else localStorage.removeItem(CLAVE_SUCIO());
+    } catch (e) {}
+  }
+  function estaSucio() {
+    try { return localStorage.getItem(CLAVE_SUCIO()) === '1'; }
+    catch (e) { return false; }
+  }
+
+  const normalizar = d => {
+    const s = { ...inicial(), ...(d || {}) };
+    s.config = { ...inicial().config, ...(s.config || {}) };
+    return s;
+  };
+
+  /* Junta lo de la nube con lo que este equipo hizo sin conexión. Los
+     pedidos y las ventas se unen por su id: lo que uno tomó y el otro no,
+     no se pierde. Lo demás lo manda la nube, que es el acuerdo común. */
+  function fundir(remoto, local) {
+    const s = normalizar(remoto);
+    const porId = (a, b) => {
+      const m = new Map(b.map(x => [x.id, x]));
+      a.forEach(x => { if (!m.has(x.id)) m.set(x.id, x); });
+      return [...m.values()];
+    };
+    s.pedidos = porId(local.pedidos || [], s.pedidos || []);
+    s.ventas = porId(local.ventas || [], s.ventas || []);
+    s.seq = {
+      pedido: Math.max(s.seq.pedido || 0, (local.seq || {}).pedido || 0),
+      venta: Math.max(s.seq.venta || 0, (local.seq || {}).venta || 0)
+    };
+    return s;
+  }
+
+  /* Trae lo de la nube y vuelve a aplicarle encima lo que este equipo hizo y
+     todavía no se confirmó. Así no se pierde ni lo de ellos ni lo nuestro. */
+  async function traerYFundir() {
+    const remoto = await Nube.traer(sede());
+    if (!remoto) { revNube = 0; return false; }
+    revNube = remoto.rev;
+    const s = normalizar(remoto.datos);
+    pendientes.forEach(fn => { try { fn(s); } catch (e) { /* ya no aplica */ } });
+    escribir(s);
+    avisar('cambio');
+    return true;
+  }
+
+  /* `forzar` sube el estado aunque no haya mutaciones nuevas en memoria: es
+     lo que hace falta cuando el equipo se recargó sin internet y lo suyo
+     todavía no llegó a la nube. */
+  async function empujar(forzar = false) {
+    if (!enNube() || empujando || !sede()) return;
+    if (!pendientes.length && !forzar) return;
+    empujando = true;
+    try {
+      for (let intento = 0; intento < 6; intento++) {
+        if (!pendientes.length && !forzar) break;
+        const cuantas = pendientes.length;
+        let res;
+        try {
+          res = revNube
+            ? await Nube.guardar(sede(), leer(), revNube)
+            : await Nube.crear(sede(), leer());
+        } catch (e) {
+          // Fila ya creada por otro equipo: se adopta la suya y se reintenta.
+          if (!revNube && /409|duplicate|23505/i.test(e.message)) {
+            await traerYFundir();
+            continue;
+          }
+          cambiarConexion('sin-conexion');
+          break;                 // queda pendiente; la sonda lo reintenta
+        }
+        if (res.ok) {
+          revNube = res.rev;
+          pendientes = pendientes.slice(cuantas);
+          forzar = false;
+          if (!pendientes.length) marcarSucio(false);
+          cambiarConexion('nube');
+        } else {
+          await traerYFundir();  // otro equipo se adelantó: releer y reintentar
+        }
+      }
+    } finally { empujando = false; }
+  }
+
+  function cambiarConexion(c) {
+    if (conexion === c) return;
+    conexion = c;
+    oyentes.forEach(cb => cb('conexion', c));
+  }
+
+  /* La sonda: pregunta el número de revisión, que pesa unos pocos bytes, y
+     solo se trae el estado entero cuando alguien cambió algo. */
+  async function sondear() {
+    if (!enNube() || !sede()) return;
+    try {
+      const r = await Nube.revision(sede());
+      cambiarConexion('nube');
+      if (r === null) { revNube = 0; await empujar(true); }   // nadie creó el local todavía
+      else if (r !== revNube) await traerYFundir();
+      if (pendientes.length) await empujar();
+      if (vueltas++ % 4 === 0) {
+        presenciaNube = await Nube.presentes(sede()).catch(() => presenciaNube);
+      }
+    } catch (e) {
+      cambiarConexion('sin-conexion');
+    }
+  }
+
+  /* Arranque: antes de pintar nada, este equipo se pone al día con el local.
+     Devuelve cómo quedó, para que la portada lo diga.
+
+     Se llama desde más de un sitio a la vez —la página y su módulo—, así que
+     todas las llamadas comparten un solo arranque. Si no, dos de ellas
+     intentarían crear el local al mismo tiempo y la segunda se daría contra
+     la fila que acaba de crear la primera. */
+  let arrancando = null;
+  function arrancar() {
+    if (!arrancando) arrancando = arrancarDeVeras().finally(() => { arrancando = null; });
+    return arrancando;
+  }
+
+  async function arrancarDeVeras() {
+    if (!enNube() || !sede()) { conexion = enNube() ? conexion : 'local'; return conexion; }
+    try {
+      const remoto = await Nube.traer(sede());
+      if (remoto) {
+        const local = leer();
+        /* Si este equipo tenía cambios sin subir —se recargó sin internet—
+           se juntan las dos partes. Si no, manda lo de la nube. */
+        const s = estaSucio() ? fundir(remoto.datos, local) : normalizar(remoto.datos);
+        revNube = remoto.rev;
+        guardarRespaldo(local);
+        escribir(s);
+        const teniaLoSuyo = estaSucio();
+        pendientes = [];
+        if (teniaLoSuyo) await empujar(true);   // lo que hizo sin internet, arriba
+        else marcarSucio(false);
+      } else {
+        // Primer equipo del local: sube lo que tenga.
+        try {
+          const res = await Nube.crear(sede(), leer());
+          revNube = res.rev;
+          marcarSucio(false);
+        } catch (e) {
+          // Otro equipo lo creó en el mismo instante: se adopta el suyo.
+          if (!/409|duplicate|23505/i.test(e.message)) throw e;
+          await traerYFundir();
+        }
+        pendientes = [];
+      }
+      cambiarConexion('nube');
+      avisar('cambio');
+    } catch (e) {
+      cambiarConexion('sin-conexion');
+    }
+    if (!sonda) {
+      sonda = setInterval(sondear, 1500);
+      latirEquipo();
+      setInterval(latirEquipo, 8000);
+    }
+    return conexion;
+  }
+
+  /* Lo que había en este equipo antes de adoptar lo de la nube. Nunca se usa
+     solo, pero si algo sale mal es la diferencia entre un susto y perder la
+     noche de trabajo. */
+  function guardarRespaldo(s) {
+    try { localStorage.setItem(`chifa:respaldo:${sede()}`, JSON.stringify(s)); }
+    catch (e) {}
   }
 
   function avisar(tipo, datos) {
@@ -647,7 +876,8 @@ const Store = (() => {
     on: cb => { oyentes.add(cb); return () => oyentes.delete(cb); },
     estado: leer, hoy, avisar,
     sede, sedeInfo, entrarSede, salirSede, codigoValido,
-    latirCocina, cocinaConectada,
+    latirCocina, cocinaConectada, equiposConectados,
+    arrancar, estadoConexion, enNube, sincronizar: sondear,
     carta, plato, editarPlato, mesas, mesasMozo, nuevaMesaLlevar, ordenMesa, minutosPlato,
     platosPendientes, platosEntregados, priorizarItem, desmarcarUnidad,
     grupos, grupoDe, mesasDe, claveCuenta, unirMesas, separarMesas, nombreCuenta, mesaCorta,

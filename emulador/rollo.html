@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Ticketera emulada · Cuatro Dragones</title>
+<title>Ticketeras del local · Cuatro Dragones</title>
 <link rel="stylesheet" href="rollo.css">
 <!-- Las reglas del ticket salen del propio app.css del sistema (del bloque
      @media print). El emulador no imita el papel: usa el mismo estilo. -->
@@ -15,40 +15,66 @@
   <div class="marca">
     <span class="chapa">80</span>
     <div>
-      <h1>Ticketera emulada</h1>
-      <p id="linea-puertos">visor 8788 · ESC/POS 9100</p>
+      <h1>Ticketeras del local</h1>
+      <p id="linea-red">cargando…</p>
     </div>
   </div>
 
-  <div class="estado" id="estado">
-    <button class="chip" id="c-enlinea" data-campo="enlinea">en línea</button>
-    <button class="chip" id="c-papel"   data-campo="papel">con papel</button>
-    <button class="chip" id="c-tapa"    data-campo="tapa">tapa cerrada</button>
-    <button class="chip" id="c-ancho">80 mm</button>
-    <span class="chip fijo" id="c-cajon" title="veces que se abrió el cajón">cajón 0</span>
-    <span class="chip fijo" id="c-enlace">conectando…</span>
-  </div>
-
   <div class="acciones">
+    <span class="chip fijo" id="c-enlace">conectando…</span>
     <button class="btn" id="b-sonido" aria-pressed="true">🔊 sonido</button>
     <button class="btn" id="b-seguir" aria-pressed="true">↓ seguir</button>
-    <button class="btn" id="b-prueba">ticket de prueba</button>
-    <button class="btn peligro" id="b-limpiar">limpiar rollo</button>
+    <button class="btn peligro" id="b-limpiar">limpiar rollos</button>
   </div>
 </header>
 
 <main>
-  <!-- El rollo: el papel sale por acá, de arriba hacia abajo. -->
-  <section class="rollo" id="rollo">
-    <div class="cabezal" aria-hidden="true"></div>
-    <div class="tira" id="tira"></div>
-    <p class="vacio" id="vacio">
-      No ha salido nada todavía.<br>
-      Manda un pedido desde el sistema, o dale a <b>ticket de prueba</b>.
-    </p>
+  <section class="banco">
+
+    <!-- COCINA · la comanda: mesa y platos. La manda el mozo desde su
+         tablet, o la cajera si el pedido es para llevar. -->
+    <section class="impresora" data-dest="cocina">
+      <div class="cabecera">
+        <h2>Cocina <span class="puerto" data-puerto>9100</span></h2>
+        <div class="estado">
+          <button class="chip" data-campo="enlinea">en línea</button>
+          <button class="chip" data-campo="papel">con papel</button>
+          <button class="chip" data-campo="tapa">tapa cerrada</button>
+          <button class="chip" data-campo="ancho">80 mm</button>
+          <span class="chip fijo" data-cajon>cajón 0</span>
+          <button class="btn chico" data-prueba>probar</button>
+        </div>
+      </div>
+      <div class="rollo">
+        <div class="cabezal" aria-hidden="true"></div>
+        <div class="tira"></div>
+        <p class="vacio">Acá salen las <b>comandas</b>.<br>Manda un pedido desde el mozo o la caja.</p>
+      </div>
+    </section>
+
+    <!-- CAJA · la boleta al cobrar, la precuenta y el cierre del día. -->
+    <section class="impresora" data-dest="caja">
+      <div class="cabecera">
+        <h2>Caja <span class="puerto" data-puerto>9101</span></h2>
+        <div class="estado">
+          <button class="chip" data-campo="enlinea">en línea</button>
+          <button class="chip" data-campo="papel">con papel</button>
+          <button class="chip" data-campo="tapa">tapa cerrada</button>
+          <button class="chip" data-campo="ancho">80 mm</button>
+          <span class="chip fijo" data-cajon>cajón 0</span>
+          <button class="btn chico" data-prueba>probar</button>
+        </div>
+      </div>
+      <div class="rollo">
+        <div class="cabezal" aria-hidden="true"></div>
+        <div class="tira"></div>
+        <p class="vacio">Acá salen las <b>boletas</b>,<br>precuentas y el cierre de caja.</p>
+      </div>
+    </section>
+
   </section>
 
-  <!-- Registro: qué llegó, por dónde y con qué bytes. -->
+  <!-- Registro: qué llegó, de qué equipo y con qué bytes. -->
   <aside class="registro">
     <h2>Trabajos</h2>
     <ol id="lista"></ol>

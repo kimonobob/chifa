@@ -775,9 +775,11 @@
     const sinNada = !st.mesa || !items.length;
     $('#enviar').disabled = sinNada;
     $('#enviar-pad').disabled = sinNada;
-    /* "Enviar e imprimir" solo si el papel va a salir de ESTE equipo; si no,
-       el botón no promete una impresión que ocurre en la cocina. */
-    const etq = Store.config().imprimirAlEnviar && Impresion.imprimeComandas()
+    /* "Enviar e imprimir" solo si el papel va a salir de verdad: porque la
+       ticketera está en ESTE equipo, o porque hay un servidor de impresión
+       que la saca en la cocina. Si no, el botón no promete una impresión
+       que no va a ocurrir. */
+    const etq = Store.config().imprimirAlEnviar && Impresion.saleLaComanda()
       ? 'Enviar e imprimir'
       : 'Enviar a cocina';
     $('#enviar').textContent = etq;
@@ -875,4 +877,8 @@
     if (st.vista === 'salon') tickSalon();
   }, 1000);
   $('#reloj').textContent = UI.horaSeg(Date.now());
+
+  /* Ponerse al día con el resto del local: sin esto, esta tablet mostraría
+     solo las mesas que ella misma abrió. */
+  Store.arrancar();
 })();

@@ -5,23 +5,43 @@
 
 const Impresion = (() => {
 
-  /* ── Ticketera emulada (emulador/impresora.py) ─────────────────────────
-     Para probar sin gastar papel ni tener la máquina delante: con el
-     emulador encendido, el ticket se le manda a él y sale en el rollo de
-     la pantalla en vez de abrir el diálogo del navegador.
-        ...cocina.html?emulador=1   lo prende (y queda prendido en ese equipo)
-        ...cocina.html?emulador=0   lo apaga y vuelve a la impresora
-     Si el emulador no está levantado, la impresión se va al papel de
-     verdad: una comanda perdida cuesta más que un susto.                 */
-  const EMULADOR = 'http://127.0.0.1:8788';
+  /* ── Servidor de impresión del local (emulador/impresora.py) ───────────
+     El chifa tiene dos ticketeras —la de cocina y la de caja— y están
+     enchufadas a un equipo, no a la tablet del mozo. El servidor de
+     impresión recibe los tickets de TODOS los equipos del local y los
+     reparte a la impresora que corresponde. Con eso, el mozo manda el
+     pedido desde el salón y el papel sale en la cocina.
+
+     Se le dice a cada equipo dónde está el servidor, una sola vez:
+        ...mozo.html?emulador=192.168.1.50   el equipo de la cocina
+        ...caja.html?emulador=1              el servidor está en este mismo
+        ...cocina.html?emulador=0            apagarlo y volver al navegador
+
+     Hoy al otro lado está el emulador, que dibuja el papel en pantalla; el
+     día que se enchufen las ticketeras de verdad cambia lo que hace el
+     servidor, no esto. Si el servidor no contesta, el ticket se imprime
+     por el navegador: una comanda perdida cuesta más que un susto.      */
+  const SERVIDOR = 'chifa.impresion';
+
+  function comoURL(v) {
+    if (v === '1' || v === 'si') return 'http://127.0.0.1:8788';
+    if (/^https?:\/\//.test(v)) return v.replace(/\/+$/, '');
+    return `http://${/:\d+$/.test(v) ? v : v + ':8788'}`;
+  }
 
   (() => {
     const p = new URLSearchParams(location.search).get('emulador');
-    if (p === '1') localStorage.setItem('chifa.emulador', '1');
-    if (p === '0') localStorage.removeItem('chifa.emulador');
+    if (p === null) return;
+    try {
+      if (p === '0' || p === 'no') localStorage.removeItem(SERVIDOR);
+      else localStorage.setItem(SERVIDOR, comoURL(p));
+    } catch (e) { /* sin persistencia: queda para esta pestaña nomás */ }
   })();
 
-  const emulando = () => localStorage.getItem('chifa.emulador') === '1';
+  function servidor() {
+    try { return localStorage.getItem(SERVIDOR) || ''; }
+    catch (e) { return ''; }
+  }
 
   /* ── Qué equipo saca las comandas ──────────────────────────────────────
      La ticketera de cocina está enchufada a UN equipo. Cuando el mozo
@@ -53,13 +73,30 @@ const Impresion = (() => {
   }
   const imprimeComandas = () => rolImpresora() === 'si';
 
-  function alEmulador(html) {
+  /* ¿Va a salir la comanda si este equipo la manda? Sale si la ticketera
+     está acá, o si hay un servidor de impresión que la saque en la cocina.
+     Es lo que mira el mozo antes de prometer "enviar e imprimir". */
+  const saleLaComanda = () => !!servidor() || imprimeComandas();
+
+  /* Qué pantalla mandó el ticket y de qué local: en el rollo se ve de dónde
+     salió cada papel, que es lo primero que uno quiere saber cuando algo
+     no aparece. */
+  function remitente() {
+    const sede = (Store.sedeInfo && Store.sedeInfo()) || null;
+    return {
+      pantalla: document.body.dataset.app || '',
+      sede: sede ? sede.nombre : '',
+      titulo: document.title
+    };
+  }
+
+  function alServidor(html, destino) {
     // Texto plano a propósito: así el navegador no pide permiso previo
-    // (preflight) para mandar el ticket al otro puerto.
-    return fetch(`${EMULADOR}/ticket`, {
+    // (preflight) para mandar el ticket al otro equipo.
+    return fetch(`${servidor()}/ticket`, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
-      body: JSON.stringify({ html, titulo: document.title })
+      body: JSON.stringify({ html, destino, ...remitente() })
     }).then(r => r.json());
   }
 
@@ -83,16 +120,21 @@ const Impresion = (() => {
     });
   }
 
-  function imprimir(html) {
-    if (!emulando()) return aPapel(html);
-    alEmulador(html)
+  /* `destino` dice cuál de las dos ticketeras saca este papel:
+       'cocina' — la comanda, lo que hay que preparar
+       'caja'   — la boleta, la precuenta y el cierre del día              */
+  function imprimir(html, destino = 'cocina') {
+    if (!servidor()) return aPapel(html);
+    alServidor(html, destino)
       .then(r => {
-        // La ticketera emulada puede estar sin papel o con la tapa abierta:
-        // así se prueba qué pasa cuando la de verdad lo esté.
-        if (!r.ok && window.UI) UI.toast(`La ticketera no imprimió: ${r.motivo}`, 'error');
+        // La ticketera puede estar sin papel o con la tapa abierta: el
+        // servidor lo dice y la pantalla lo avisa, en vez de dar por
+        // impreso un papel que nadie tiene en la mano.
+        if (!r.ok && window.UI)
+          UI.toast(`La ticketera de ${destino} no imprimió: ${r.motivo}`, 'error');
       })
       .catch(() => {
-        if (window.UI) UI.toast('Emulador apagado: el ticket va a la impresora', 'error');
+        if (window.UI) UI.toast('Sin servidor de impresión: el ticket sale acá', 'error');
         aPapel(html);
       });
   }
@@ -273,41 +315,49 @@ const Impresion = (() => {
 
   const api = {
     imprimir,
-    imprimeComandas, rolImpresora, setRolImpresora,
+    imprimeComandas, rolImpresora, setRolImpresora, saleLaComanda, servidor,
     comanda, comandaPorPlato, ticketPlato, precuenta, boleta, cierre,
     /* Un solo plato de la cola: lo que usa la vista "uno por uno". */
     imprimirPlato(p, item, unidad) {
-      imprimir(ticketPlato(p, item, unidad));
+      imprimir(ticketPlato(p, item, unidad), 'cocina');
     },
     imprimirComanda(p, opts) {
       const html = comanda(p, opts);
       if (!html) return false;
-      imprimir(html);
+      imprimir(html, 'cocina');
       Store.marcarImpreso(p.id);
       return true;
     },
     imprimirPorPlato(p) {
       const html = comandaPorPlato(p);
       if (!html) return false;
-      imprimir(html);
+      imprimir(html, 'cocina');
       Store.marcarImpreso(p.id);
       return true;
     },
+    /* Precuenta, boleta y cierre salen por la ticketera de la caja: son
+       papeles que se le dan al cliente o se archivan, no van a la cocina. */
     imprimirPrecuenta(mesa) {
       const html = precuenta(mesa);
       if (!html) return false;
-      imprimir(html);
+      imprimir(html, 'caja');
       return true;
     },
-    imprimirBoleta(v) { imprimir(boleta(v)); },
-    imprimirCierre(dia) { imprimir(cierre(dia)); },
+    imprimirBoleta(v) { imprimir(boleta(v), 'caja'); },
+    imprimirCierre(dia) { imprimir(cierre(dia), 'caja'); },
 
-    /* Comanda automática, la del pedido recién mandado: sale únicamente en
-       el equipo que tiene la ticketera de cocina. En cualquier otro
-       devuelve false sin abrir nada, y el pedido queda sin marcar como
-       impreso para que la cocina lo saque cuando le llegue. */
+    /* Comanda automática, la del pedido recién mandado.
+
+       Con servidor de impresión sale siempre: la manda cualquier equipo
+       —la tablet del mozo en el salón, la caja con un pedido para llevar—
+       y el papel aparece en la cocina, que es donde tiene que aparecer.
+
+       Sin servidor, solo la saca el equipo que tiene la ticketera
+       enchufada. En cualquier otro devuelve false sin abrir nada, y el
+       pedido queda sin marcar como impreso para que la cocina lo saque
+       cuando le llegue. */
     comandaAuto(p, opts) {
-      if (!imprimeComandas()) return false;
+      if (!saleLaComanda()) return false;
       return api.imprimirComanda(p, opts);
     }
   };

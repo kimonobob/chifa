@@ -490,7 +490,20 @@
   pintarBarra();
   pintar();
   tick();
-  imprimirLoRezagado();
   Store.on(() => { pintarBarra(); pintar(); revisarNuevos(); });
   setInterval(tick, 1000);
+
+  /* Sin sincronización no hay nada que esperar: el papel sale ya.
+     Con ella, primero ponerse al día con el local — si no, esta pantalla
+     sacaría papel de lo poco que tuviera guardado y volvería a sacarlo
+     cuando llegara lo de los demás equipos. */
+  if (!Store.enNube()) imprimirLoRezagado();
+  Store.arrancar().then(() => {
+    if (!Store.enNube()) return;
+    conocidos.clear();
+    Store.pedidosCocina().forEach(p => conocidos.add(p.id));
+    pintarBarra();
+    pintar();
+    imprimirLoRezagado();
+  });
 })();

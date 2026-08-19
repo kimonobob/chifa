@@ -689,4 +689,8 @@
   });
   setInterval(() => { $('#reloj').textContent = UI.horaSeg(Date.now()); }, 1000);
   $('#reloj').textContent = UI.horaSeg(Date.now());
+
+  /* Ponerse al día con el resto del local: las mesas que abrió el mozo en su
+     tablet tienen que estar acá para poder cobrarlas. */
+  Store.arrancar();
 })();

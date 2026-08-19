@@ -1,26 +1,34 @@
 # -*- coding: utf-8 -*-
-"""Emulador de ticketera térmica de 80 mm — Chifa Cuatro Dragones.
+"""Servidor de impresión del local, con las dos ticketeras emuladas.
 
     python emulador/impresora.py
 
-Levanta dos cosas a la vez:
+El chifa tiene dos impresoras y cada una saca lo suyo:
 
-  · Puerto 9100 (TCP crudo)  — el mismo que usan las ticketeras de red
-    (Epson TM-T20, las genéricas POS-80). Recibe ESC/POS, lo interpreta y
-    lo dibuja. Sirve para probar impresión directa, sin navegador.
+    cocina — la comanda: la mesa y los platos a preparar. La manda el mozo
+             desde su tablet, o la cajera cuando el pedido es para llevar.
+    caja   — la boleta al cobrar, la precuenta y el cierre del día.
 
-  · http://127.0.0.1:8788     — el visor: el rollo de papel saliendo en
-    pantalla. Ahí también entran los tickets del sistema web, que manda
-    HTML en vez de ESC/POS.
+Este programa emula las dos y atiende a TODOS los equipos del local por la
+red: la tablet del mozo manda su comanda y el papel sale donde está la
+impresora, no en la tablet. Es el mismo reparto que con las máquinas de
+verdad, y por eso lo que pruebes acá es lo que va a pasar allá.
 
-Todo se queda en 127.0.0.1: esto es una herramienta de banco de pruebas,
-no un servicio para exponer en la red del local.
+Cada impresora recibe por dos caminos:
+
+  · http://ESTE-EQUIPO:8788/ticket   el sistema web, que manda HTML
+  · TCP 9100 (cocina) y 9101 (caja)  ESC/POS crudo, el protocolo de las
+                                     ticketeras de red de verdad
+
+Y el visor —http://ESTE-EQUIPO:8788— muestra los dos rollos saliendo.
 
 Opciones:
-    --web 8788        puerto del visor
-    --raw 9100        puerto crudo (0 lo apaga)
-    --abrir           abre el visor en el navegador al arrancar
-    --guardar         guarda los bytes crudos en emulador/capturas/
+    --web 8788            puerto del visor y de la entrada de tickets
+    --cocina 9100         puerto ESC/POS de la impresora de cocina (0 lo apaga)
+    --caja 9101           puerto ESC/POS de la impresora de caja (0 lo apaga)
+    --solo-este-equipo    no atender a la red: solo 127.0.0.1
+    --abrir               abre el visor en el navegador
+    --guardar             guarda los bytes crudos en emulador/capturas/
 """
 
 import argparse
@@ -48,14 +56,36 @@ except (AttributeError, OSError):
 AQUI = os.path.dirname(os.path.abspath(__file__))
 RAIZ = os.path.dirname(AQUI)                          # la carpeta del sistema
 CAPTURAS = os.path.join(AQUI, 'capturas')
-MAX_TRABAJOS = 200                                    # lo viejo se cae del rollo
+MAX_TRABAJOS = 300                                    # lo viejo se cae del rollo
+
+# Las dos ticketeras del local. El nombre corto es el que manda el sistema
+# en el campo `destino` de cada ticket.
+DESTINOS = {
+    'cocina': 'Ticketera de cocina',
+    'caja': 'Ticketera de caja',
+}
+POR_DEFECTO = 'cocina'
 
 
-# ═══ El rollo: lo que la impresora lleva impreso ═════════════════════════
-class Rollo:
-    """Guarda los trabajos y avisa a los visores conectados. Es el único
-    estado compartido, así que todo lo que toca la lista pasa por el
-    candado."""
+def ip_del_local():
+    """La IP de este equipo en la red del chifa: la que hay que ponerle a
+    las tablets. No manda nada, solo le pregunta al sistema por dónde
+    saldría el paquete."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('8.8.8.8', 80))
+        return s.getsockname()[0]
+    except OSError:
+        return '127.0.0.1'
+    finally:
+        s.close()
+
+
+# ═══ El banco: las dos impresoras y lo que llevan impreso ════════════════
+class Banco:
+    """Guarda el estado de cada impresora, los trabajos que llegaron y avisa
+    a los visores conectados. Es el único estado compartido, así que todo
+    lo que lo toca pasa por el candado."""
 
     def __init__(self, guardar=False):
         self.lock = threading.Lock()
@@ -63,13 +93,16 @@ class Rollo:
         self.seq = 0
         self.oyentes = []                             # colas de los visores
         self.guardar = guardar
-        # Estado simulado de la máquina, para probar los caminos feos.
-        self.estado = {'papel': True, 'tapa': False, 'enlinea': True,
-                       'ancho': 80, 'cajon': 0}
+        # Estado simulado de cada máquina, para probar los caminos feos.
+        self.impresoras = {
+            d: {'id': d, 'nombre': n, 'papel': True, 'tapa': False,
+                'enlinea': True, 'ancho': 80, 'cajon': 0}
+            for d, n in DESTINOS.items()
+        }
 
     # ── Visores ──────────────────────────────────────────────────────────
     def suscribir(self):
-        q = queue.Queue(maxsize=50)
+        q = queue.Queue(maxsize=100)
         with self.lock:
             self.oyentes.append(q)
         return q
@@ -89,19 +122,24 @@ class Rollo:
                 pass                                  # visor dormido: se pierde el aviso
 
     # ── Entrada de trabajos ──────────────────────────────────────────────
-    def _rechazo(self):
-        """La impresora no puede imprimir: dice por qué. Igual queda
-        anotado en el rollo, que para eso se prueba."""
-        if not self.estado['enlinea']:
+    def _rechazo(self, destino):
+        """Por qué esta impresora no puede imprimir ahora. El trabajo queda
+        anotado igual en el rollo: para eso se prueba."""
+        m = self.impresoras[destino]
+        if not m['enlinea']:
             return 'impresora desconectada'
-        if self.estado['tapa']:
+        if m['tapa']:
             return 'tapa abierta'
-        if not self.estado['papel']:
+        if not m['papel']:
             return 'sin papel'
         return None
 
     def imprimir(self, trabajo):
-        motivo = self._rechazo()
+        destino = trabajo.get('destino') or POR_DEFECTO
+        if destino not in self.impresoras:
+            destino = POR_DEFECTO
+        trabajo['destino'] = destino
+        motivo = self._rechazo(destino)
         with self.lock:
             self.seq += 1
             trabajo['id'] = self.seq
@@ -113,7 +151,7 @@ class Rollo:
         self._avisar({'que': 'trabajo', 'trabajo': trabajo})
         return trabajo
 
-    def escpos(self, datos, origen):
+    def escpos(self, datos, destino, equipo):
         """Bytes ESC/POS → papeles. Cada corte arranca un papel nuevo."""
         bloques = Interprete().analizar(datos)
         papeles, actual = [], []
@@ -123,41 +161,51 @@ class Rollo:
                 actual = []
             else:
                 if b['tipo'] == 'cajon':
-                    self.abrir_cajon()
+                    self.abrir_cajon(destino)
                 actual.append(b)
         if actual:
             papeles.append({'bloques': actual, 'corte': None})
         if self.guardar:
-            self._guardar_bytes(datos)
+            self._guardar_bytes(datos, destino)
         return self.imprimir({
-            'tipo': 'escpos', 'via': 'puerto 9100', 'origen': origen,
+            'tipo': 'escpos', 'destino': destino, 'via': 'ESC/POS',
+            'equipo': equipo, 'pantalla': '', 'sede': '',
             'papeles': papeles, 'bytes': len(datos),
             'hex': ' '.join('%02X' % b for b in datos[:4096]),
             'recorte': len(datos) > 4096,
         })
 
-    def html(self, html, titulo, via='navegador'):
+    def html(self, html, destino, datos):
+        """Un ticket del sistema web. `datos` dice de dónde salió: qué
+        pantalla, qué local y qué equipo lo mandó."""
         return self.imprimir({
-            'tipo': 'html', 'via': via, 'origen': titulo or 'sistema web',
+            'tipo': 'html', 'destino': destino, 'via': 'sistema web',
+            'equipo': datos.get('equipo', ''),
+            'pantalla': datos.get('pantalla', ''),
+            'sede': datos.get('sede', ''),
+            'titulo': datos.get('titulo', ''),
             'papeles': [{'html': html, 'corte': 'total'}],
             'bytes': len(html.encode('utf-8')),
         })
 
-    def abrir_cajon(self):
+    def abrir_cajon(self, destino):
         with self.lock:
-            self.estado['cajon'] += 1
-        self._avisar({'que': 'cajon'})
+            self.impresoras[destino]['cajon'] += 1
+        self._avisar({'que': 'cajon', 'destino': destino})
 
     # ── Estado y limpieza ────────────────────────────────────────────────
-    def set_estado(self, campos):
+    def set_estado(self, destino, campos):
+        if destino not in self.impresoras:
+            return None
         with self.lock:
+            m = self.impresoras[destino]
             for k in ('papel', 'tapa', 'enlinea'):
                 if k in campos:
-                    self.estado[k] = bool(campos[k])
-            if 'ancho' in campos and campos['ancho'] in (58, 80):
-                self.estado['ancho'] = campos['ancho']
-            estado = dict(self.estado)
-        self._avisar({'que': 'estado', 'estado': estado})
+                    m[k] = bool(campos[k])
+            if campos.get('ancho') in (58, 80):
+                m['ancho'] = campos['ancho']
+            estado = dict(m)
+        self._avisar({'que': 'estado', 'impresora': estado})
         return estado
 
     def limpiar(self):
@@ -167,35 +215,37 @@ class Rollo:
 
     def instantanea(self, desde=0):
         with self.lock:
-            return {'estado': dict(self.estado),
+            return {'impresoras': {d: dict(m) for d, m in self.impresoras.items()},
                     'trabajos': [t for t in self.trabajos if t['id'] > desde],
                     'ultimo': self.seq}
 
-    def _guardar_bytes(self, datos):
+    def _guardar_bytes(self, datos, destino):
         try:
             os.makedirs(CAPTURAS, exist_ok=True)
-            nombre = time.strftime('%Y%m%d-%H%M%S') + '-%03d.bin' % (self.seq + 1)
+            nombre = '%s-%s-%03d.bin' % (time.strftime('%Y%m%d-%H%M%S'),
+                                         destino, self.seq + 1)
             with open(os.path.join(CAPTURAS, nombre), 'wb') as f:
                 f.write(datos)
         except OSError as e:
             print('  no se pudo guardar la captura:', e)
 
 
-ROLLO = None                                          # se arma en main()
+BANCO = None                                          # se arma en main()
 
 
-# ═══ Puerto 9100: la impresora de red ════════════════════════════════════
+# ═══ Puertos crudos: una impresora de red por destino ════════════════════
 class ManejadorRaw(socketserver.BaseRequestHandler):
     """Una conexión = una sesión de impresión. Los drivers suelen dejar el
-    socket abierto y mandar trabajo tras trabajo, así que cerramos el
-    trabajo cuando se calla la línea por un momento (o cuando cuelga)."""
+    socket abierto y mandar trabajo tras trabajo, así que el trabajo se
+    cierra cuando la línea se calla un momento (o cuando cuelgan)."""
 
     ESPERA = 1.5                                      # silencio que cierra el trabajo
     ABANDONO = 300                                    # conexión muerta: se corta
+    destino = POR_DEFECTO                             # lo fija cada servidor
 
     def handle(self):
-        origen = '%s:%d' % self.client_address
-        print('  [9100] conectó %s' % origen)
+        equipo = self.client_address[0]
+        print('  [%s] conectó %s:%d' % (self.destino, equipo, self.client_address[1]))
         self.request.settimeout(self.ESPERA)
         buf = bytearray()
         quieto = 0.0
@@ -205,7 +255,7 @@ class ManejadorRaw(socketserver.BaseRequestHandler):
                     chunk = self.request.recv(8192)
                 except socket.timeout:
                     if buf:
-                        ROLLO.escpos(bytes(buf), origen)
+                        BANCO.escpos(bytes(buf), self.destino, equipo)
                         buf = bytearray()
                         quieto = 0.0
                     else:
@@ -216,10 +266,11 @@ class ManejadorRaw(socketserver.BaseRequestHandler):
                 if not chunk:
                     break
                 quieto = 0.0
-                # Contestar las consultas de estado en el acto: el que
+                # Las consultas de estado se contestan en el acto: el que
                 # pregunta está esperando el byte antes de seguir.
-                with ROLLO.lock:
-                    papel, tapa = ROLLO.estado['papel'], ROLLO.estado['tapa']
+                with BANCO.lock:
+                    m = BANCO.impresoras[self.destino]
+                    papel, tapa = m['papel'], m['tapa']
                 resp = respuestas_a(chunk, papel, tapa)
                 if resp:
                     try:
@@ -231,13 +282,18 @@ class ManejadorRaw(socketserver.BaseRequestHandler):
             pass
         finally:
             if buf:
-                ROLLO.escpos(bytes(buf), origen)
-            print('  [9100] cerró %s' % origen)
+                BANCO.escpos(bytes(buf), self.destino, equipo)
 
 
 class ServidorRaw(socketserver.ThreadingTCPServer):
     allow_reuse_address = True
     daemon_threads = True
+
+
+def servidor_raw(host, puerto, destino):
+    """Levanta un puerto crudo atado a una de las dos impresoras."""
+    manejador = type('Raw' + destino.title(), (ManejadorRaw,), {'destino': destino})
+    return ServidorRaw((host, puerto), manejador)
 
 
 # ═══ El visor y la entrada del sistema web ═══════════════════════════════
@@ -288,21 +344,20 @@ def css_del_ticket():
 
 
 class ManejadorWeb(BaseHTTPRequestHandler):
-    server_version = 'TicketeraFalsa/1.0'
+    server_version = 'TicketeraFalsa/2.0'
     protocol_version = 'HTTP/1.1'
+    puertos = {}                                      # lo llena main(), para el visor
 
     # ── utilidades ───────────────────────────────────────────────────────
-    def _cabeceras(self, tipo, largo=None, extra=None):
+    def _cabeceras(self, tipo, largo=None):
         self.send_response(200)
         self.send_header('Content-Type', tipo)
         if largo is not None:
             self.send_header('Content-Length', str(largo))
-        # El sistema corre en el 8787 y el visor en el 8788: sin esto el
-        # navegador no deja que uno le mande el ticket al otro.
+        # El sistema corre en el 8787 —y en otro equipo— y el visor en el
+        # 8788: sin esto el navegador no deja que uno le mande el ticket.
         self.send_header('Access-Control-Allow-Origin', '*')
         self.send_header('Cache-Control', 'no-store')
-        for k, v in (extra or {}).items():
-            self.send_header(k, v)
         self.end_headers()
 
     def _json(self, obj, codigo=200):
@@ -322,13 +377,24 @@ class ManejadorWeb(BaseHTTPRequestHandler):
         tipo = mimetypes.guess_type(ruta)[0] or 'application/octet-stream'
         with open(ruta, 'rb') as f:
             datos = f.read()
-        self._cabeceras(tipo + ('; charset=utf-8' if 'text' in tipo or 'javascript' in tipo else ''),
-                        len(datos))
+        if 'text' in tipo or 'javascript' in tipo:
+            tipo += '; charset=utf-8'
+        self._cabeceras(tipo, len(datos))
         self.wfile.write(datos)
 
     def _cuerpo(self):
         largo = int(self.headers.get('Content-Length') or 0)
         return self.rfile.read(largo) if largo else b''
+
+    def _pedido(self):
+        """El cuerpo como diccionario, venga como venga."""
+        texto = self._cuerpo().decode('utf-8', 'replace').strip()
+        if texto.startswith('{'):
+            try:
+                return json.loads(texto)
+            except ValueError:
+                pass
+        return {'html': texto}
 
     def log_message(self, formato, *args):
         pass                                          # el rollo ya es el registro
@@ -353,48 +419,44 @@ class ManejadorWeb(BaseHTTPRequestHandler):
             self._cabeceras('text/css; charset=utf-8', len(css))
             return self.wfile.write(css)
         if ruta == '/salud':
-            return self._json({'ok': True, 'emulador': 'ticketera 80 mm'})
+            # El sistema pregunta esto para saber si el servidor de
+            # impresión del local está levantado.
+            return self._json({'ok': True, 'destinos': list(DESTINOS),
+                               'puertos': self.puertos})
         if ruta == '/trabajos':
-            desde = 0
-            if '?' in self.path:
-                m = re.search(r'desde=(\d+)', self.path)
-                desde = int(m.group(1)) if m else 0
-            return self._json(ROLLO.instantanea(desde))
+            m = re.search(r'desde=(\d+)', self.path)
+            return self._json(BANCO.instantanea(int(m.group(1)) if m else 0))
         if ruta == '/eventos':
             return self._eventos()
         return self._json({'error': 'ruta desconocida'}, 404)
 
     def do_POST(self):
         ruta = self.path.split('?')[0]
-        cuerpo = self._cuerpo()
         if ruta == '/ticket':
-            texto = cuerpo.decode('utf-8', 'replace').strip()
-            titulo = ''
-            html = texto
-            if texto.startswith('{'):
-                try:
-                    obj = json.loads(texto)
-                    html = obj.get('html', '')
-                    titulo = obj.get('titulo', '')
-                except ValueError:
-                    pass
+            d = self._pedido()
+            html = d.get('html', '')
             if not html:
                 return self._json({'error': 'ticket vacío'}, 400)
-            t = ROLLO.html(html, titulo)
+            # Si el que manda no dice quién es, al menos queda su IP: en el
+            # local eso alcanza para saber qué tablet fue.
+            d['equipo'] = d.get('equipo') or self.client_address[0]
+            t = BANCO.html(html, d.get('destino'), d)
             return self._json({'ok': t['estado'] == 'impreso', 'id': t['id'],
-                               'motivo': t['motivo']})
+                               'destino': t['destino'], 'motivo': t['motivo']})
         if ruta == '/escpos':
             # Bytes ESC/POS por HTTP, para probar sin abrir un socket.
-            t = ROLLO.escpos(cuerpo, 'HTTP')
+            destino = re.search(r'destino=(\w+)', self.path)
+            t = BANCO.escpos(self._cuerpo(),
+                             destino.group(1) if destino else POR_DEFECTO,
+                             self.client_address[0])
             return self._json({'ok': t['estado'] == 'impreso', 'id': t['id']})
         if ruta == '/estado':
-            try:
-                campos = json.loads(cuerpo.decode('utf-8') or '{}')
-            except ValueError:
-                campos = {}
-            return self._json(ROLLO.set_estado(campos))
+            d = self._pedido()
+            e = BANCO.set_estado(d.get('destino', POR_DEFECTO), d)
+            return self._json(e or {'error': 'no existe esa impresora'},
+                              200 if e else 400)
         if ruta == '/limpiar':
-            ROLLO.limpiar()
+            BANCO.limpiar()
             return self._json({'ok': True})
         return self._json({'error': 'ruta desconocida'}, 404)
 
@@ -406,22 +468,22 @@ class ManejadorWeb(BaseHTTPRequestHandler):
         self.send_header('Connection', 'keep-alive')
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
-        q = ROLLO.suscribir()
+        q = BANCO.suscribir()
         try:
             self.wfile.write(b': conectado\n\n')
             self.wfile.flush()
             while True:
                 try:
                     ev = q.get(timeout=15)
-                    dato = json.dumps(ev, ensure_ascii=False)
-                    self.wfile.write(('data: %s\n\n' % dato).encode('utf-8'))
+                    self.wfile.write(('data: %s\n\n' % json.dumps(ev, ensure_ascii=False))
+                                     .encode('utf-8'))
                 except queue.Empty:
                     self.wfile.write(b': latido\n\n')   # que no lo corte el navegador
                 self.wfile.flush()
         except (OSError, ValueError):
             pass                                       # el visor se fue
         finally:
-            ROLLO.desuscribir(q)
+            BANCO.desuscribir(q)
 
     def handle_one_request(self):
         try:
@@ -432,39 +494,62 @@ class ManejadorWeb(BaseHTTPRequestHandler):
 
 # ═══ Arranque ════════════════════════════════════════════════════════════
 def main():
-    global ROLLO
-    p = argparse.ArgumentParser(description='Emulador de ticketera térmica')
-    p.add_argument('--web', type=int, default=8788, help='puerto del visor')
-    p.add_argument('--raw', type=int, default=9100, help='puerto ESC/POS crudo (0 = apagado)')
+    global BANCO
+    p = argparse.ArgumentParser(
+        description='Servidor de impresión del chifa, con las ticketeras emuladas')
+    p.add_argument('--web', type=int, default=8788, help='puerto del visor y de los tickets')
+    p.add_argument('--cocina', type=int, default=9100, help='puerto ESC/POS de cocina (0 lo apaga)')
+    p.add_argument('--caja', type=int, default=9101, help='puerto ESC/POS de caja (0 lo apaga)')
+    p.add_argument('--solo-este-equipo', action='store_true',
+                   help='no atender a la red del local, solo a 127.0.0.1')
     p.add_argument('--abrir', action='store_true', help='abre el visor en el navegador')
     p.add_argument('--guardar', action='store_true', help='guarda los bytes en emulador/capturas/')
     args = p.parse_args()
 
-    ROLLO = Rollo(guardar=args.guardar)
+    BANCO = Banco(guardar=args.guardar)
+    # Por defecto atiende a todo el local: de eso se trata, que la tablet
+    # del mozo pueda mandar su comanda. Con --solo-este-equipo se encierra.
+    host = '127.0.0.1' if args.solo_este_equipo else '0.0.0.0'
+    ip = '127.0.0.1' if args.solo_este_equipo else ip_del_local()
 
-    web = ThreadingHTTPServer(('127.0.0.1', args.web), ManejadorWeb)
-    web.daemon_threads = True
-    hilos = [threading.Thread(target=web.serve_forever, daemon=True)]
-
-    raw = None
-    if args.raw:
+    puertos, servidores = {}, []
+    for destino, puerto in (('cocina', args.cocina), ('caja', args.caja)):
+        if not puerto:
+            continue
         try:
-            raw = ServidorRaw(('127.0.0.1', args.raw), ManejadorRaw)
-            hilos.append(threading.Thread(target=raw.serve_forever, daemon=True))
+            servidores.append(servidor_raw(host, puerto, destino))
+            puertos[destino] = puerto
         except OSError as e:
-            print('  aviso: el puerto %d no se pudo abrir (%s).' % (args.raw, e))
-            print('  El visor igual funciona; solo queda sin entrada ESC/POS.')
+            print('  aviso: el puerto %d (%s) no se pudo abrir: %s' % (puerto, destino, e))
 
-    for h in hilos:
-        h.start()
+    ManejadorWeb.puertos = puertos
+    try:
+        web = ThreadingHTTPServer((host, args.web), ManejadorWeb)
+    except OSError as e:
+        # Casi siempre es que ya hay otra ticketera prendida: pasa cuando
+        # uno la arranca dos veces sin darse cuenta.
+        print('No se pudo abrir el puerto %d: %s' % (args.web, e))
+        print('¿Ya hay una ticketera corriendo? Mírala en http://127.0.0.1:%d' % args.web)
+        print('Si no, arranca esta en otro puerto:  --web %d' % (args.web + 1))
+        return 1
+    web.daemon_threads = True
+    servidores.append(web)
 
-    print('Ticketera térmica emulada · Chifa Cuatro Dragones')
-    print('  visor    http://127.0.0.1:%d' % args.web)
-    if raw:
-        print('  ESC/POS  127.0.0.1:%d  (puerto crudo, como una impresora de red)' % args.raw)
+    for s in servidores:
+        threading.Thread(target=s.serve_forever, daemon=True).start()
+
+    print('Ticketeras emuladas · Chifa Cuatro Dragones')
+    print('  visor y tickets   http://%s:%d' % (ip, args.web))
+    for destino, puerto in puertos.items():
+        print('  %-20s %s:%d   (ESC/POS crudo)' % (DESTINOS[destino], ip, puerto))
+    if args.solo_este_equipo:
+        print('  Solo este equipo: las tablets NO pueden mandar tickets.')
+    else:
+        print('  Las tablets y la caja imprimen acá abriendo el sistema con:')
+        print('      ?emulador=%s' % ip)
     if args.guardar:
-        print('  capturas %s' % CAPTURAS)
-    print('  (Ctrl+C para detenerla)')
+        print('  capturas          %s' % CAPTURAS)
+    print('  (Ctrl+C para detenerlas)')
 
     if args.abrir:
         webbrowser.open('http://127.0.0.1:%d' % args.web)
@@ -473,7 +558,7 @@ def main():
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        print('\nDetenida.')
+        print('\nDetenidas.')
 
 
 if __name__ == '__main__':

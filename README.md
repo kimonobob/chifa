@@ -75,12 +75,70 @@ Y en el navegador: <http://127.0.0.1:8787>
 > trabajando con una versión que ya no existe — pasa, y cuesta mucho darse
 > cuenta.
 >
-> Los archivos además llevan un número de versión (`assets/store.js?v=10`). Si
+> Los archivos además llevan un número de versión (`assets/store.js?v=11`). Si
 > algún día tocas los archivos a mano, sube ese número en los cuatro `.html`
 > para que los navegadores recojan la versión nueva. Y si algo se ve raro tras
 > una actualización, recarga con **Ctrl+F5**.
 
-Abre cada pantalla en su propia pestaña o ventana. Se sincronizan al instante.
+Abre cada pantalla en su propia pestaña o ventana.
+
+## Que todos los equipos vean lo mismo
+
+Sin esto, cada navegador guarda **sus propios datos**: el mozo ve las mesas que
+él abrió y la caja las suyas, cada uno en su mundo. Para que la tablet del
+salón, la cocina y la caja trabajen sobre las mismas mesas, todos los equipos
+tienen que apuntar al mismo sitio. Ese sitio es un proyecto de
+[Supabase](https://supabase.com) — gratis de sobra para el volumen de un chifa.
+
+**Una sola vez, en el proyecto de Supabase:**
+
+1. Entra a **SQL Editor › New query**.
+2. Pega entero el archivo [supabase.sql](supabase.sql) y dale a **Run**. Crea
+   las dos tablas que hacen falta. Se puede volver a correr sin miedo.
+
+**Una sola vez, en el sistema:** abre [assets/nube.js](assets/nube.js) y pega
+arriba del todo, en `FIJO`, las dos cosas que salen en Supabase ›
+Project&nbsp;Settings › API:
+
+```js
+const FIJO = {
+  url:   'https://xxxxxxxx.supabase.co',   // Project URL
+  clave: 'ey…'                             // anon / public key
+};
+```
+
+Como todos los equipos abren el sistema desde el mismo sitio, con eso quedan
+conectados todos de una vez. Si prefieres probar sin tocar archivos, en la
+portada hay un botón **Sincronizar** donde se pegan esas dos cosas — pero
+entonces hay que hacerlo **en cada equipo**.
+
+El chip de la barra de la portada dice cómo está:
+
+| Chip | Qué significa |
+|---|---|
+| **Sincronizado** (verde) | Este equipo ve y comparte las mesas del local |
+| **Sin internet** (ámbar) | Se sigue trabajando acá; lo hecho sube al volver |
+| **Sin sincronizar** (apagado) | Este equipo guarda solo lo suyo |
+
+### Si se cae el internet
+
+**El chifa no deja de atender.** Cada equipo sigue tomando pedidos y cobrando
+contra su copia local, anota que tiene cosas sin subir y las manda apenas
+vuelve la conexión — aunque la tablet se haya reiniciado mientras tanto. Al
+reconectar, lo de un equipo y lo del otro **se juntan**: no se pisan.
+
+Lo que sí pasa mientras no hay internet es que los equipos no se ven entre
+ellos, así que conviene que en ese rato una sola persona tome los pedidos de
+una misma mesa.
+
+### Sobre la clave
+
+La clave `anon` viaja dentro de la página, así que **cualquiera que abra el
+sistema puede verla**: es pública por diseño, no es una contraseña. Quien tenga
+la URL y esa clave puede leer y escribir los pedidos del chifa. Para el salón
+de un restaurante alcanza; si algún día hace falta seguridad de verdad, se pone
+Supabase Auth con un usuario por local y se cambian las reglas del `.sql` por
+`to authenticated`.
 
 ---
 
@@ -349,26 +407,46 @@ El ticket sale formateado para **ticketera térmica de 80 mm**.
 > mandar el papel. No es un problema del sistema: es una protección del
 > navegador y no se puede desactivar desde la página.
 
-### Probar sin impresora: la ticketera emulada
+### Probar sin impresoras: las dos ticketeras emuladas
 
-En `emulador/` hay una impresora térmica de mentira: recibe los tickets y los
-saca en un rollo de papel dibujado en la pantalla, con su ancho real de 80 mm.
+El chifa imprime en dos máquinas: la **comanda** sale por la ticketera de
+la cocina y la **boleta** por la de caja. En `emulador/` están las dos
+emuladas, dibujando su rollo de papel en pantalla, y de paso hacen de
+**servidor de impresión del local**: reciben los tickets de todos los
+equipos y los reparten.
+
+Eso es lo que permite que el mozo mande el pedido desde su tablet y el
+papel salga en la cocina — la tablet no imprime, la tablet avisa.
 
 ```
-python emulador/impresora.py --abrir
+python emulador/impresora.py --abrir     en el equipo de las impresoras
+python servir.py --red                   el sistema, visible para las tablets
 ```
 
-Después se abre cualquier pantalla con `?emulador=1` una sola vez —por
-ejemplo `http://127.0.0.1:8787/cocina.html?emulador=1`— y desde ahí las
-comandas, precuentas y boletas salen en el rollo virtual en vez de abrir el
-diálogo de impresión. Con `?emulador=0` vuelve a la impresora de verdad, y si
-el emulador no está corriendo el ticket también se va al papel: una comanda
-perdida cuesta más que un susto.
+Después, en cada equipo, una sola vez, se le dice dónde imprimir con la IP
+que muestra el emulador al arrancar:
 
-Sus botones apagan el papel, abren la tapa o desconectan la impresora, para
-ver qué hace el sistema cuando la ticketera falla. También escucha en el
-**puerto 9100**, el que usan las ticketeras de red de verdad, por si algún día
-el chifa pasa a imprimir directo con ESC/POS. Todo está explicado en
+```
+http://192.168.1.41:8787/mozo.html?emulador=192.168.1.41
+```
+
+Queda guardado en ese equipo (`?emulador=0` lo apaga; `?emulador=1` si el
+servidor está en la misma máquina). Cada papel aparece en su rollo con el
+sello de qué pantalla y qué equipo lo mandó.
+
+Los chips del visor apagan el papel, abren la tapa o desconectan **cada
+impresora por separado**: así se ve qué hace el sistema cuando la ticketera
+falla, que es lo que nunca se prueba. Si el servidor no contesta, el ticket
+sale por el navegador del equipo que lo mandó.
+
+> Esto reparte **el papel**, no los datos: la comanda que manda la tablet se
+> imprime en la cocina, pero la cuenta sigue viviendo en el navegador de esa
+> tablet y no aparece en la pantalla de caja. Para eso hace falta el backend
+> que se menciona más abajo.
+
+Las impresoras emuladas escuchan además en los **puertos 9100 y 9101** con
+ESC/POS, el protocolo de las ticketeras de red de verdad, por si algún día
+el chifa pasa a imprimir directo. Todo está explicado en
 [emulador/LEEME.md](emulador/LEEME.md).
 
 ## 3 · Caja
@@ -433,19 +511,19 @@ edita `assets/data.js`.
 
 ## Lo que hay que saber antes de usarlo en el local
 
-**Las tres pantallas comparten datos por el navegador, no por red.** Funcionan
-juntas en pestañas y ventanas del mismo navegador y del mismo equipo. Sirve muy
-bien para un equipo con dos o tres monitores: caja al frente, cocina atrás.
-
-**Para tablets del mozo o una pantalla de cocina en otro equipo hace falta un
-servidor.** Es el siguiente paso natural: un backend chico (Node + WebSocket +
-SQLite) reemplazando `assets/store.js`, sin tocar el resto. Toda la lógica de
-datos está aislada en ese archivo justamente para eso.
+**Sin sincronizar, cada equipo guarda lo suyo.** Las pantallas se hablan por el
+navegador: funcionan juntas en pestañas y ventanas del mismo equipo, pero la
+tablet del mozo y la computadora de la caja no se ven entre ellas. Para que
+todos vean las mismas mesas hay que conectarlas — ver *Que todos los equipos
+vean lo mismo*.
 
 Otras cosas a tener en cuenta:
 
-- Los datos viven en el `localStorage` de ese navegador. Si borras los datos de
-  navegación, se van. Exporta el CSV al cerrar el día.
+- Sin sincronizar, los datos viven en el `localStorage` de ese navegador. Si
+  borras los datos de navegación, se van. Exporta el CSV al cerrar el día.
+- La sincronización necesita internet. Si se cae, cada equipo sigue trabajando
+  con lo suyo y sube lo hecho cuando vuelve; pero mientras tanto **no se ven
+  entre ellos**, y dos equipos podrían abrir la misma mesa por separado.
 - La impresión automática ocurre en el equipo que tiene la ticketera —la
   pantalla de cocina—, así que esa pantalla tiene que estar abierta. Si está
   cerrada, el mozo recibe el aviso y la comanda sale apenas se abra.
@@ -463,17 +541,19 @@ index.html          portada y resumen en vivo
 mozo.html           pantalla del mozo
 cocina.html         pantalla de cocina
 caja.html           pantalla de caja
+supabase.sql        las tablas para sincronizar los equipos — correr una vez
 assets/
   data.js           la carta: códigos, nombres, precios, notas rápidas
+  nube.js           conexión con Supabase — acá van la URL y la clave
   store.js          estado compartido, cuentas, cobros, sincronización
   print.js          armado de comandas, precuentas, boletas y cierre
   mozo.js           lector de códigos, rueda, teclado, borradores
   cocina.js         tablero, cronómetros, impresión manual/automática
   caja.js           cobro, ventas del día, editor de carta
   app.css           diseño de las tres pantallas + formato de ticket 80 mm
-servir.py           servidor local, sin caché
-emulador/           ticketera térmica de mentira, para probar
-  impresora.py      puerto 9100 (ESC/POS) + visor del rollo en el 8788
+servir.py           servidor local, sin caché (--red para las tablets)
+emulador/           las dos ticketeras de mentira, para probar
+  impresora.py      servidor de impresión del local + visor de los rollos
   escpos.py         intérprete de ESC/POS
   rollo.html/css/js el papel saliendo en pantalla
   probar.py         tickets de ejemplo, acá o a una impresora real

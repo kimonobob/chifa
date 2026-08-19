@@ -1,121 +1,143 @@
-# Ticketera térmica emulada
+# Las dos ticketeras del local, emuladas
 
-Una impresora de tickets de 80 mm que no existe: recibe lo que le mandes y
-lo saca en un rollo de papel dibujado en la pantalla. Sirve para probar el
-sistema del chifa sin la máquina delante y sin gastar un metro de papel por
-cada prueba.
+El chifa tiene dos impresoras y cada una saca lo suyo:
 
-Entiende las dos formas de imprimir:
-
-| Entrada | Puerto | Quién la usa |
+| | Qué sale | Quién lo manda |
 |---|---|---|
-| **HTML** del sistema web | `8788` (`POST /ticket`) | mozo, cocina y caja, que hoy imprimen por navegador |
-| **ESC/POS** crudo | `9100` (TCP) | el protocolo de las ticketeras de verdad: Epson TM-T20, las POS-80 genéricas |
+| **Cocina** | la comanda: mesa y platos a preparar | el mozo desde su tablet, o la cajera si el pedido es para llevar |
+| **Caja** | la boleta al cobrar, la precuenta, el cierre del día | la cajera |
+
+Esto las emula a las dos y hace de **servidor de impresión del local**:
+recibe los tickets de todos los equipos y los reparte. Así el mozo manda el
+pedido desde el salón y el papel sale en la cocina — que es el punto: la
+tablet no imprime, la tablet avisa.
+
+Todo se dibuja en un rollo de papel en pantalla, con su ancho real de 80 mm,
+para probar sin gastar papel y sin tener las máquinas delante.
 
 ---
 
 ## Arrancarlo
 
+En el equipo que va a tener las impresoras (la PC de la cocina, o la de
+caja mientras pruebas):
+
 ```
 python emulador/impresora.py --abrir
 ```
 
-Queda escuchando y abre el visor en **http://127.0.0.1:8788**.
+Al arrancar dice la dirección del local, por ejemplo:
 
-Opciones: `--web 8788` (puerto del visor), `--raw 9100` (puerto crudo, `0`
-lo apaga), `--guardar` (deja los bytes recibidos en `emulador/capturas/`
-para mirarlos después).
+```
+  visor y tickets      http://192.168.1.41:8788
+  Ticketera de cocina  192.168.1.41:9100   (ESC/POS crudo)
+  Ticketera de caja    192.168.1.41:9101   (ESC/POS crudo)
+  Las tablets y la caja imprimen acá abriendo el sistema con:
+      ?emulador=192.168.1.41
+```
 
-Todo se ata a `127.0.0.1`: es un banco de pruebas, no un servicio para
-publicar en la red del local.
+Esa IP es la que hay que ponerle a los demás equipos.
+
+Opciones: `--web 8788`, `--cocina 9100`, `--caja 9101` (un `0` apaga ese
+puerto), `--solo-este-equipo` (no atiende a la red), `--guardar` (deja los
+bytes recibidos en `emulador/capturas/`).
 
 ---
 
-## Probar el sistema del chifa
+## Conectar los equipos del local
 
-El sistema corre aparte, como siempre:
-
-```
-python servir.py
-```
-
-Y se le dice que imprima en la ticketera emulada agregando `?emulador=1`
-una sola vez:
+**1 · El sistema tiene que salir a la red.** Hasta ahora `servir.py` solo
+atendía a la propia máquina; para que la tablet lo abra:
 
 ```
-http://127.0.0.1:8787/cocina.html?emulador=1
-http://127.0.0.1:8787/mozo.html?emulador=1
-http://127.0.0.1:8787/caja.html?emulador=1
+python servir.py --red
 ```
 
-Queda prendido en ese navegador hasta que abras la misma página con
-`?emulador=0`. Desde ahí, cada comanda, precuenta, boleta y cierre de caja
-sale en el rollo de la pantalla en vez de abrir el diálogo de impresión.
+Dice la dirección (`http://192.168.1.41:8787`) y esa es la que se abre en
+la tablet.
 
-**Si el emulador no está levantado, el ticket se va a la impresora de
-verdad.** Es a propósito: perder una comanda cuesta más que un susto.
+**2 · Cada equipo aprende dónde imprimir**, una sola vez, agregando
+`?emulador=` con la IP del servidor de impresión:
 
-El rollo dibuja los tickets con las mismas reglas del `@media print` de
-`assets/app.css` —el visor las lee del archivo al vuelo—, así que lo que ves
-en pantalla es lo que va a salir en papel. Si mañana cambias esos estilos,
-el visor cambia solo.
+```
+tablet del mozo   http://192.168.1.41:8787/mozo.html?emulador=192.168.1.41
+caja              http://192.168.1.41:8787/caja.html?emulador=192.168.1.41
+cocina            http://192.168.1.41:8787/cocina.html?emulador=192.168.1.41
+```
+
+Queda guardado en ese equipo. Se apaga con `?emulador=0`, y si el servidor
+está en la misma máquina alcanza con `?emulador=1`.
+
+**3 · Listo.** Desde la tablet: mesa, platos, *enviar*. La comanda aparece
+en el rollo de **cocina** con el sello de qué pantalla y qué equipo la
+mandó. Desde la caja, al cobrar, la boleta aparece en el rollo de **caja**.
+
+> **Ojo con lo que esto NO arregla.** Los pedidos siguen viviendo en el
+> navegador de cada equipo: la comanda que manda la tablet **sale impresa
+> en la cocina, pero la cuenta no aparece en la pantalla de la caja**. Para
+> eso hace falta el backend que menciona el README. Lo que ya funciona de
+> punta a punta, y se puede probar, es el papel.
+
+Si el servidor de impresión no contesta, el ticket se imprime por el
+navegador del equipo que lo mandó: una comanda perdida cuesta más que un
+susto.
+
+---
+
+## El visor
+
+Dos rollos, uno por impresora. El papel sale de la ranura de arriba con su
+ancho real; cada corte separa un papel del siguiente, con el borde dentado.
+Al costado de cada papel queda el número de trabajo, la hora, **de qué
+pantalla y de qué equipo salió**.
+
+- **Trabajos** (a la derecha) — todo lo que llegó, a cuál impresora, desde
+  qué equipo. En los ESC/POS se despliega **ver los bytes** con el
+  hexadecimal completo, que es donde se encuentran los problemas de verdad.
+  Al hacer clic salta a ese papel.
+- **Los chips de cada impresora son botones**: le quitan el papel, le abren
+  la tapa o la desconectan — **cada una por separado**. Con eso se prueba
+  qué hace el sistema cuando la ticketera falla: el equipo que mandó el
+  ticket recibe el rechazo y avisa en pantalla ("La ticketera de cocina no
+  imprimió: sin papel"). Es lo que nunca se prueba y siempre pasa un
+  viernes a las nueve de la noche.
+- **80 mm / 58 mm** cambia el rollo cargado de esa impresora. Si el ticket
+  no entra, el visor lo marca: en la máquina de verdad eso se pierde por el
+  costado sin avisar.
+- **cajón** cuenta los pulsos al cajón de dinero (`ESC p`) de esa máquina.
+- **probar** manda un ticket de ejemplo a esa impresora sin tocar el sistema.
 
 ---
 
 ## Probar ESC/POS (impresión directa)
 
 ```
-python emulador/probar.py                 manda todos los ejemplos
-python emulador/probar.py comanda boleta  solo esos
-python emulador/probar.py logo barras     imagen, código de barras y QR
+python emulador/probar.py                  manda todos los ejemplos
+python emulador/probar.py comanda          la comanda, por cocina
+python emulador/probar.py boleta           la boleta, por caja
+python emulador/probar.py logo --a cocina  fuerza una ticketera
 ```
 
-Los ejemplos son los tickets del chifa armados con comandos de impresora:
-comanda de cocina, boleta con vuelto, papel por platillo, pulso al cajón,
-QR de SUNAT, logo en mapa de bits, y uno con un comando inventado para ver
-que el emulador lo marca en rojo en vez de tragárselo.
-
-El mismo comando apuntando a una impresora de verdad imprime en papel:
+Cada ejemplo sale por la ticketera que le toca, igual que en el local. El
+mismo comando apuntando a una impresora de verdad imprime en papel:
 
 ```
 python emulador/probar.py boleta --host 192.168.1.50
 ```
 
 Es el mismo protocolo. Por eso lo que pruebes acá vale para el día que
-compres la máquina.
+compres las máquinas.
 
-Desde otros lenguajes es igual de simple: abrir un socket a
-`127.0.0.1:9100` y escribir los bytes. Con [python-escpos][escpos]:
+Desde otros lenguajes es igual de simple: abrir un socket al puerto y
+escribir los bytes. Con [python-escpos][escpos]:
 
 ```python
 from escpos.printer import Network
-p = Network('127.0.0.1', port=9100)
-p.text('MESA 7\n'); p.cut()
+cocina = Network('192.168.1.41', port=9100)
+cocina.text('MESA 7\n'); cocina.cut()
 ```
 
 [escpos]: https://github.com/python-escpos/python-escpos
-
----
-
-## El visor
-
-- **El rollo** — el papel sale de la ranura de arriba, con su ancho real en
-  milímetros. Cada corte (`GS V`) separa un papel del siguiente, con el
-  borde dentado. Al costado de cada uno queda el número de trabajo, la hora
-  y por dónde entró.
-- **Trabajos** (a la derecha) — todo lo que llegó. En los ESC/POS se puede
-  desplegar **ver los bytes** con el hexadecimal completo, que es donde se
-  encuentran los problemas de verdad. Al hacer clic salta a ese papel.
-- **Los chips de estado** son botones: apagan el papel, abren la tapa o
-  desconectan la impresora. Con eso pruebas qué hace el sistema cuando la
-  ticketera falla —que es lo que nunca se prueba y siempre pasa un viernes
-  a las nueve de la noche. El sistema recibe el rechazo y avisa en pantalla.
-- **80 mm / 58 mm** cambia el rollo cargado. Si el ticket no entra en el
-  papel, el visor lo marca: en la impresora de verdad eso se pierde por el
-  costado sin avisar.
-- **cajón** cuenta los pulsos al cajón de dinero (`ESC p`), y da un golpe en
-  pantalla cuando llega uno.
-- **ticket de prueba** manda un ticket de ejemplo sin salir del visor.
 
 ---
 
@@ -128,15 +150,23 @@ y B (`ESC M`), tamaños de 1× a 8× (`ESC !`, `GS !`), avances (`ESC d`,
 (`ESC p`), imágenes de trama (`GS v 0`) y por columnas (`ESC *`), códigos de
 barras (`GS k`) y QR (`GS ( k`), y contesta las consultas de estado
 (`DLE EOT`, `GS r`, `GS I`) diciendo la verdad sobre el papel y la tapa que
-tenga puestos el visor.
+tenga puestos esa impresora en el visor.
 
 Lo que no reconoce sale en el papel como una marca roja con su hexadecimal.
 Eso es a propósito: una impresora muda te deja adivinando.
 
-Dos honestidades: el QR y el código de barras se dibujan como un recuadro
-con el dato al lado, no como el código legible de verdad —para probar que
-mandas el dato correcto alcanza—, y los tickets del sistema web se dibujan
-como HTML, que es exactamente lo que hoy manda el navegador a la impresora.
+Tres honestidades:
+
+1. El QR y el código de barras se dibujan como un recuadro con el dato al
+   lado, no como el código legible de verdad. Para comprobar que mandas el
+   dato correcto alcanza; para probar que SUNAT lo lee, no.
+2. Los tickets del sistema web se dibujan como HTML —que es exactamente lo
+   que hoy manda el navegador a la impresora—, con las mismas reglas del
+   `@media print` de `assets/app.css`, leídas del archivo al vuelo. Si
+   cambias esos estilos, el rollo cambia solo.
+3. La letra es la de tu pantalla, no la de 12×24 puntos que trae quemada la
+   máquina. Las **columnas sí son las reales** (42 en 80 mm, 32 en 58 mm):
+   si algo no entra en la línea, acá tampoco entra.
 
 ---
 
@@ -144,15 +174,16 @@ como HTML, que es exactamente lo que hoy manda el navegador a la impresora.
 
 ```
 emulador/
-  impresora.py   el servidor: puerto 9100 crudo + web del visor
+  impresora.py   el servidor de impresión: dos puertos crudos + el visor
   escpos.py      el intérprete de ESC/POS (no imprime: entiende)
-  rollo.html     el visor
+  rollo.html     el visor, con un rollo por impresora
   rollo.css      su estilo; el del ticket sale de assets/app.css
   rollo.js       dibuja el papel y habla con el servidor
-  probar.py      manda tickets de ejemplo, acá o a una impresora real
+  probar.py      tickets de ejemplo, acá o a impresoras reales
   capturas/      bytes crudos, solo si arrancas con --guardar
 ```
 
-El enganche del lado del sistema son treinta líneas en
-`assets/print.js`: si el emulador está prendido, el ticket va por `fetch`;
-si no, `window.print()` como siempre.
+Del lado del sistema, el enganche está en `assets/print.js`: cada ticket
+sabe a cuál de las dos ticketeras va (`'cocina'` o `'caja'`), y si hay
+servidor de impresión se le manda; si no, sale por `window.print()` como
+siempre.

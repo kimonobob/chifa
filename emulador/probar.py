@@ -2,9 +2,12 @@
 """Manda tickets ESC/POS al emulador, como lo haría un programa de verdad.
 
     python emulador/probar.py                 los manda todos
-    python emulador/probar.py comanda         solo la comanda
-    python emulador/probar.py boleta cajon    los que quieras
+    python emulador/probar.py comanda         solo la comanda (a cocina)
+    python emulador/probar.py boleta --a caja la boleta, por la de caja
     python emulador/probar.py --host 192.168.1.50 --puerto 9100
+
+Cada ticket sabe por cuál ticketera sale —la comanda por cocina, la boleta
+por caja—, igual que en el local. Con `--a` se fuerza una en concreto.
 
 Sin argumentos de host apunta a 127.0.0.1:9100, que es el emulador. Si
 mañana compras la ticketera de verdad, el mismo comando con su IP imprime
@@ -160,12 +163,18 @@ def raro():
 TICKETS = {'comanda': comanda, 'boleta': boleta, 'plato': plato,
            'cajon': cajon, 'barras': barras, 'logo': logo, 'raro': raro}
 
+# Por dónde sale cada uno, y en qué puerto escucha cada ticketera.
+DESTINO = {'comanda': 'cocina', 'plato': 'cocina', 'raro': 'cocina',
+           'boleta': 'caja', 'cajon': 'caja', 'barras': 'caja', 'logo': 'caja'}
+PUERTOS = {'cocina': 9100, 'caja': 9101}
+
 
 def main():
     p = argparse.ArgumentParser(description='Manda tickets ESC/POS de prueba')
     p.add_argument('cuales', nargs='*', default=[], help='comanda boleta plato cajon barras logo raro')
     p.add_argument('--host', default='127.0.0.1')
-    p.add_argument('--puerto', type=int, default=9100)
+    p.add_argument('--a', choices=('cocina', 'caja'), help='forzar una ticketera')
+    p.add_argument('--puerto', type=int, help='puerto crudo (por defecto, el de la ticketera)')
     p.add_argument('--veces', type=int, default=1, help='repetir el envío')
     args = p.parse_args()
 
@@ -176,9 +185,28 @@ def main():
         print('Hay: %s' % ', '.join(TICKETS))
         return 1
 
-    datos = b''.join(TICKETS[c]() for c in cuales) * args.veces
+    # Se agrupan por ticketera: una conexión por impresora, como haría un
+    # programa de verdad que tiene dos direcciones configuradas.
+    por_maquina = {}
+    for c in cuales:
+        destino = args.a or DESTINO[c]
+        por_maquina.setdefault(destino, []).append(c)
+
+    for destino, tickets in por_maquina.items():
+        puerto = args.puerto or PUERTOS[destino]
+        datos = b''.join(TICKETS[c]() for c in tickets) * args.veces
+        if not enviar(args.host, puerto, datos):
+            return 1
+        print('  %-6s %5d bytes  ->  %s:%d   (%s)'
+              % (destino, len(datos), args.host, puerto, ', '.join(tickets)))
+
+    print('Míralos en http://%s:8788' % args.host)
+    return 0
+
+
+def enviar(host, puerto, datos):
     try:
-        with socket.create_connection((args.host, args.puerto), timeout=5) as s:
+        with socket.create_connection((host, puerto), timeout=5) as s:
             s.sendall(datos)
             # Preguntamos cómo está la impresora: una ticketera contesta un
             # byte de estado, y el emulador también.
@@ -193,13 +221,10 @@ def main():
             except socket.timeout:
                 print('  la impresora no contestó el estado')
     except OSError as e:
-        print('No se pudo conectar a %s:%d — %s' % (args.host, args.puerto, e))
+        print('No se pudo conectar a %s:%d — %s' % (host, puerto, e))
         print('¿Está corriendo `python emulador/impresora.py`?')
-        return 1
-
-    print('Enviados %d bytes: %s' % (len(datos), ', '.join(cuales)))
-    print('Míralos en http://127.0.0.1:8788')
-    return 0
+        return False
+    return True
 
 
 if __name__ == '__main__':

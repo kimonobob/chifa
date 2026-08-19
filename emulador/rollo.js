@@ -1,25 +1,39 @@
-/* Visor del rollo.
+/* Visor de las dos ticketeras del local.
 
-   Recibe los trabajos del emulador (por SSE, o preguntando cada segundo si
-   el flujo se corta) y los dibuja como papel saliendo de la ranura.
+   Recibe los trabajos del servidor de impresión (por SSE, o preguntando
+   cada cinco segundos si el flujo se corta) y los dibuja como papel
+   saliendo de cada ranura: la comanda en el rollo de cocina, la boleta en
+   el de caja — el mismo reparto que hacen las máquinas de verdad.
 
    Dos clases de trabajo llegan acá:
      · html   — lo que manda el sistema del chifa, que imprime por navegador.
                 Se pinta con las mismas reglas del @media print de app.css.
-     · escpos — lo que entra por el puerto 9100, ya interpretado por el
+     · escpos — lo que entra por los puertos crudos, ya interpretado por el
                 servidor: líneas con sus atributos, cortes, imágenes.        */
 
 const $ = s => document.querySelector(s);
-const BASE = '';                       // el visor lo sirve el propio emulador
+const $$ = s => [...document.querySelectorAll(s)];
 
-const tira = $('#tira');
 const lista = $('#lista');
-const vista = $('#rollo');
+
+/* Un rollo por impresora. El estado lo manda el servidor; acá solo se
+   guarda para pintarlo. */
+const ROLLOS = {};
+$$('.impresora').forEach(sec => {
+  ROLLOS[sec.dataset.dest] = {
+    sec,
+    tira: sec.querySelector('.tira'),
+    vista: sec.querySelector('.rollo'),
+    vacio: sec.querySelector('.vacio'),
+    estado: { papel: true, tapa: false, enlinea: true, ancho: 80, cajon: 0 }
+  };
+});
 
 let ultimo = 0;                        // último id de trabajo dibujado
-let estado = { papel: true, tapa: false, enlinea: true, ancho: 80, cajon: 0 };
 let seguir = true;
 let sonido = true;
+
+const hora = ms => new Date(ms * 1000).toLocaleTimeString('es-PE', { hour12: false });
 
 /* ── Dibujar ESC/POS ───────────────────────────────────────────────────── */
 
@@ -73,9 +87,7 @@ function dibujarBloque(b) {
   if (b.tipo === 'codigo') {
     const div = document.createElement('div');
     div.className = 'codigo';
-    div.innerHTML = b.clase === 'qr'
-      ? '<div class="qr"></div>'
-      : '<div class="barras"></div>';
+    div.innerHTML = b.clase === 'qr' ? '<div class="qr"></div>' : '<div class="barras"></div>';
     const et = document.createElement('b');
     et.textContent = b.dato || '(sin datos)';
     div.appendChild(et);
@@ -106,22 +118,17 @@ function dibujarPapel(t, papel, indice, total) {
                  + (t.estado === 'rechazado' ? ' rechazado' : '');
   hoja.dataset.trabajo = t.id;
 
-  if (t.tipo === 'html') {
+  if (t.tipo === 'html' || t.tipo === 'html-uno') {
     const caja = document.createElement('div');
     caja.innerHTML = papel.html;
     // El sistema manda varios .ticket de un saque (por ejemplo una comanda
     // por plato). Cada uno es un papel distinto, igual que en la ticketera.
-    const tickets = caja.querySelectorAll('.ticket');
+    const tickets = t.tipo === 'html' ? caja.querySelectorAll('.ticket') : [];
     if (tickets.length > 1) {
-      return [...tickets].map((tk, i) =>
+      return [...tickets].flatMap((tk, i) =>
         dibujarPapel({ ...t, tipo: 'html-uno' },
-                     { html: tk.outerHTML, corte: 'total' }, i, tickets.length))
-        .flat();
+                     { html: tk.outerHTML, corte: 'total' }, i, tickets.length));
     }
-    hoja.appendChild(caja);
-  } else if (t.tipo === 'html-uno') {
-    const caja = document.createElement('div');
-    caja.innerHTML = papel.html;
     hoja.appendChild(caja);
   } else {
     const caja = document.createElement('div');
@@ -132,7 +139,7 @@ function dibujarPapel(t, papel, indice, total) {
 
   const et = document.createElement('div');
   et.className = 'marbete';
-  et.innerHTML = `<b>N° ${t.id}</b> · ${hora(t.hora)} · ${t.via}`
+  et.innerHTML = `<b>N° ${t.id}</b> · ${hora(t.hora)}${quien(t)}`
     + (total > 1 ? ` · papel ${indice + 1}/${total}` : '')
     + (t.motivo ? ` · <span class="falla">${t.motivo}</span>` : '');
   hoja.appendChild(et);
@@ -140,14 +147,27 @@ function dibujarPapel(t, papel, indice, total) {
   return [hoja];
 }
 
+/* De dónde salió el ticket: la pantalla y el equipo. En el local eso es lo
+   que uno quiere saber — si la comanda la mandó la tablet del mozo o la
+   caja, y desde qué aparato. */
+function quien(t) {
+  const partes = [t.pantalla, t.equipo].filter(Boolean);
+  return partes.length ? ' · ' + partes.join(' @ ') : ` · ${t.via}`;
+}
+
 /* ── Registro ──────────────────────────────────────────────────────────── */
 function dibujarRegistro(t) {
   const li = document.createElement('li');
-  if (t.estado === 'rechazado') li.classList.add('rechazado');
-  const papeles = t.tipo === 'html' ? '' : ` · ${t.papeles.length} papel${t.papeles.length === 1 ? '' : 'es'}`;
+  li.className = (t.estado === 'rechazado' ? 'rechazado ' : '') + 'd-' + t.destino;
+  const papeles = t.papeles.length > 1 ? ` · ${t.papeles.length} papeles` : '';
   li.innerHTML = `
-    <div class="cab"><span class="n">N° ${t.id}</span><span>${hora(t.hora)}</span></div>
-    <div class="via">${t.via} · ${t.bytes} bytes${papeles}</div>
+    <div class="cab">
+      <span class="dest">${t.destino}</span>
+      <span class="n">N° ${t.id}</span>
+      <span>${hora(t.hora)}</span>
+    </div>
+    <div class="via">${[t.pantalla, t.sede].filter(Boolean).join(' · ') || t.via}</div>
+    <div class="via">${t.equipo || ''} · ${t.bytes} bytes${papeles}</div>
     ${t.motivo ? `<div class="falla">rechazado: ${t.motivo}</div>` : ''}`;
 
   if (t.hex) {
@@ -157,7 +177,7 @@ function dibujarRegistro(t) {
   }
   li.onclick = e => {
     if (e.target.closest('details')) return;
-    const h = tira.querySelector(`.papel[data-trabajo="${t.id}"]`);
+    const h = ROLLOS[t.destino].tira.querySelector(`.papel[data-trabajo="${t.id}"]`);
     if (!h) return;
     h.scrollIntoView({ behavior: 'smooth', block: 'center' });
     h.classList.add('marcado');
@@ -170,14 +190,15 @@ function dibujarRegistro(t) {
 function recibir(t) {
   if (t.id <= ultimo) return;
   ultimo = t.id;
+  const r = ROLLOS[t.destino] || ROLLOS.cocina;
   const hojas = t.papeles.flatMap((p, i) => dibujarPapel(t, p, i, t.papeles.length));
-  hojas.forEach(h => tira.appendChild(h));
+  hojas.forEach(h => r.tira.appendChild(h));
   dibujarRegistro(t);
-  $('#vacio').hidden = true;
+  r.vacio.hidden = true;
   avisarRebalse(hojas);
   if (t.estado === 'impreso') ruido();
   if (seguir) requestAnimationFrame(() =>
-    vista.scrollTo({ top: vista.scrollHeight, behavior: 'smooth' }));
+    r.vista.scrollTo({ top: r.vista.scrollHeight, behavior: 'smooth' }));
 }
 
 /* Si el ticket es más ancho que el rollo cargado, en el papel de verdad se
@@ -185,8 +206,7 @@ function recibir(t) {
 function avisarRebalse(hojas) {
   hojas.forEach(h => {
     const hijo = h.firstElementChild;
-    if (!hijo) return;
-    if (hijo.scrollWidth > h.clientWidth + 2) {
+    if (hijo && hijo.scrollWidth > h.clientWidth + 2) {
       const m = document.createElement('span');
       m.className = 'rebalse';
       m.textContent = 'no entra en el rollo';
@@ -195,30 +215,35 @@ function avisarRebalse(hojas) {
   });
 }
 
-/* ── Estado de la máquina ──────────────────────────────────────────────── */
-function pintarEstado() {
-  const c = (id, bien, textoBien, textoMal) => {
-    const el = $(id);
+/* ── Estado de cada máquina ────────────────────────────────────────────── */
+function pintarEstado(dest) {
+  const r = ROLLOS[dest];
+  if (!r) return;
+  const e = r.estado;
+  const chip = campo => r.sec.querySelector(`.chip[data-campo="${campo}"]`);
+  const marcar = (campo, bien, textoBien, textoMal) => {
+    const el = chip(campo);
     el.textContent = bien ? textoBien : textoMal;
     el.classList.toggle('ok', bien);
     el.classList.toggle('mal', !bien);
   };
-  c('#c-enlinea', estado.enlinea, 'en línea', 'desconectada');
-  c('#c-papel', estado.papel, 'con papel', 'SIN PAPEL');
-  c('#c-tapa', !estado.tapa, 'tapa cerrada', 'TAPA ABIERTA');
-  $('#c-ancho').textContent = estado.ancho + ' mm';
-  $('#c-cajon').textContent = 'cajón ' + (estado.cajon || 0);
-  document.documentElement.style.setProperty('--papel', estado.ancho + 'mm');
-  document.documentElement.style.setProperty('--cols', estado.ancho === 58 ? 32 : 42);
+  marcar('enlinea', e.enlinea, 'en línea', 'desconectada');
+  marcar('papel', e.papel, 'con papel', 'SIN PAPEL');
+  marcar('tapa', !e.tapa, 'tapa cerrada', 'TAPA ABIERTA');
+  chip('ancho').textContent = e.ancho + ' mm';
+  r.sec.querySelector('[data-cajon]').textContent = 'cajón ' + (e.cajon || 0);
+  // El ancho del papel y las columnas son de esta impresora, no del visor.
+  r.sec.style.setProperty('--papel', e.ancho + 'mm');
+  r.sec.style.setProperty('--cols', e.ancho === 58 ? 32 : 42);
 }
 
-async function mandarEstado(campos) {
-  const r = await fetch(BASE + '/estado', {
+async function mandarEstado(dest, campos) {
+  const r = await fetch('/estado', {
     method: 'POST', headers: { 'Content-Type': 'text/plain' },
-    body: JSON.stringify(campos)
+    body: JSON.stringify({ destino: dest, ...campos })
   });
-  estado = { ...estado, ...(await r.json()) };
-  pintarEstado();
+  ROLLOS[dest].estado = { ...ROLLOS[dest].estado, ...(await r.json()) };
+  pintarEstado(dest);
 }
 
 /* ── Conexión ──────────────────────────────────────────────────────────── */
@@ -229,30 +254,60 @@ function enlace(ok, texto) {
   el.classList.toggle('enlace-mal', !ok);
 }
 
+function aplicarImpresoras(imps) {
+  Object.entries(imps || {}).forEach(([d, e]) => {
+    if (!ROLLOS[d]) return;
+    ROLLOS[d].estado = { ...ROLLOS[d].estado, ...e };
+    pintarEstado(d);
+  });
+}
+
 async function cargar() {
   try {
-    const r = await fetch(`${BASE}/trabajos?desde=${ultimo}`);
+    const r = await fetch(`/trabajos?desde=${ultimo}`);
     const d = await r.json();
-    estado = { ...estado, ...d.estado };
-    pintarEstado();
+    aplicarImpresoras(d.impresoras);
     d.trabajos.forEach(recibir);
     enlace(true, 'conectado');
   } catch (e) {
-    enlace(false, 'sin emulador');
+    enlace(false, 'sin servidor');
   }
 }
 
 function escuchar() {
-  const es = new EventSource(BASE + '/eventos');
+  const es = new EventSource('/eventos');
   es.onopen = () => enlace(true, 'conectado');
   es.onerror = () => enlace(false, 'reconectando…');
   es.onmessage = ev => {
     const d = JSON.parse(ev.data);
     if (d.que === 'trabajo') recibir(d.trabajo);
-    else if (d.que === 'estado') { estado = { ...estado, ...d.estado }; pintarEstado(); }
-    else if (d.que === 'cajon') { estado.cajon = (estado.cajon || 0) + 1; pintarEstado(); cajon(); }
-    else if (d.que === 'limpiar') { tira.innerHTML = ''; lista.innerHTML = ''; ultimo = 0; $('#vacio').hidden = false; }
+    else if (d.que === 'estado') aplicarImpresoras({ [d.impresora.id]: d.impresora });
+    else if (d.que === 'cajon') {
+      const r = ROLLOS[d.destino];
+      if (r) { r.estado.cajon = (r.estado.cajon || 0) + 1; pintarEstado(d.destino); }
+      cajon(d.destino);
+    } else if (d.que === 'limpiar') {
+      Object.values(ROLLOS).forEach(r => { r.tira.innerHTML = ''; r.vacio.hidden = false; });
+      lista.innerHTML = '';
+      ultimo = 0;
+    }
   };
+}
+
+/* Los puertos crudos de cada impresora, para tenerlos a la vista cuando se
+   configure un programa que imprima directo. */
+async function saludo() {
+  try {
+    const d = await (await fetch('/salud')).json();
+    Object.entries(d.puertos || {}).forEach(([dest, puerto]) => {
+      const el = ROLLOS[dest] && ROLLOS[dest].sec.querySelector('[data-puerto]');
+      if (el) el.textContent = `${location.hostname}:${puerto}`;
+    });
+    $('#linea-red').textContent =
+      `tickets en ${location.host} · las tablets abren el sistema con ?emulador=${location.hostname}`;
+  } catch (e) {
+    $('#linea-red').textContent = 'sin servidor de impresión';
+  }
 }
 
 /* ── Efectos: el ruido del cabezal y el golpe del cajón ────────────────── */
@@ -279,8 +334,9 @@ function ruido() {
 }
 
 let tCajon;
-function cajon() {
+function cajon(dest) {
   const el = $('#aviso-cajon');
+  el.textContent = dest === 'caja' ? 'CAJÓN ABIERTO · CAJA' : 'CAJÓN ABIERTO · COCINA';
   el.hidden = false;
   clearTimeout(tCajon);
   tCajon = setTimeout(() => { el.hidden = true; }, 1600);
@@ -290,13 +346,13 @@ function cajon() {
 /* Sirve para ver el visor funcionando sin tocar el sistema, y de paso para
    comprobar que el intérprete entiende lo que le mandan las librerías:
    tamaños, negrita, alineación, corte y cajón. */
-function ticketPrueba() {
+function ticketPrueba(dest) {
   const b = [];
   const txt = s => {
     // cp850: lo que mandan casi todas las librerías cuando hay que escribir
     // ñ y tildes en una ticketera.
     const mapa = { 'ñ': 0xA4, 'Ñ': 0xA5, 'á': 0xA0, 'é': 0x82, 'í': 0xA1,
-                   'ó': 0xA2, 'ú': 0xA3, '°': 0xF8, 'º': 0xA7 };
+                   'ó': 0xA2, 'ú': 0xA3, '°': 0xF8, 'º': 0xA7, '¡': 0xAD };
     for (const c of s) b.push(mapa[c] ?? (c.charCodeAt(0) & 0xFF));
   };
   const cmd = (...xs) => b.push(...xs);
@@ -304,43 +360,70 @@ function ticketPrueba() {
   cmd(0x1B, 0x40);                       // ESC @   inicializar
   cmd(0x1B, 0x74, 0x02);                 // ESC t 2 página cp850
   cmd(0x1B, 0x61, 0x01);                 // ESC a 1 centrar
-  cmd(0x1D, 0x21, 0x11);                 // GS ! 11 doble alto y ancho
-  txt('CUATRO DRAGONES'); cmd(0x0A);
-  cmd(0x1D, 0x21, 0x00);                 // tamaño normal
-  txt('Av. Los Chifas 421 - Lima'); cmd(0x0A);
-  txt('RUC 20512345678'); cmd(0x0A, 0x0A);
-  cmd(0x1B, 0x21, 0x30);                 // ESC ! 30 doble, para la mesa
-  txt('MESA 7'); cmd(0x0A);
-  cmd(0x1B, 0x21, 0x00);
-  txt('------------------------------'); cmd(0x0A);
-  cmd(0x1B, 0x61, 0x00);                 // a la izquierda
-  txt('2x Arroz chaufa de pollo   24.00'); cmd(0x0A);
-  txt('1x Wantan frito            12.00'); cmd(0x0A);
-  txt('1x Sopa wantan             15.00'); cmd(0x0A);
-  txt('   con poca sal, por favor'); cmd(0x0A);
-  txt('------------------------------'); cmd(0x0A);
-  cmd(0x1B, 0x45, 0x01);                 // negrita
-  txt('TOTAL');
-  cmd(0x1B, 0x45, 0x00);
-  txt('                     S/ 51.00'); cmd(0x0A, 0x0A);
-  cmd(0x1B, 0x61, 0x01);
-  txt('Gracias por su visita'); cmd(0x0A);
-  cmd(0x1B, 0x64, 0x03);                 // ESC d 3  avanzar papel
-  cmd(0x1B, 0x70, 0x00, 0x19, 0xFA);     // ESC p    abrir el cajón
-  cmd(0x1D, 0x56, 0x00);                 // GS V 0   corte total
+
+  if (dest === 'cocina') {
+    cmd(0x1D, 0x21, 0x11);               // GS ! 11 doble alto y ancho
+    txt('COMANDA'); cmd(0x0A);
+    cmd(0x1D, 0x21, 0x00);
+    txt('Pedido N° 148 · 20:41'); cmd(0x0A);
+    cmd(0x1D, 0x21, 0x12);
+    txt('MESA 7'); cmd(0x0A);
+    cmd(0x1D, 0x21, 0x00);
+    txt('Mozo: Luis'); cmd(0x0A);
+    cmd(0x1B, 0x61, 0x00);
+    txt('------------------------------------------'); cmd(0x0A);
+    cmd(0x1D, 0x21, 0x11); txt('02  2x');
+    cmd(0x1D, 0x21, 0x01); txt(' ARROZ CHAUFA'); cmd(0x0A);
+    cmd(0x1D, 0x21, 0x00); txt('        >> sin cebolla china'); cmd(0x0A);
+    cmd(0x1D, 0x21, 0x11); txt('15  1x');
+    cmd(0x1D, 0x21, 0x01); txt(' WANTAN FRITO'); cmd(0x0A);
+    cmd(0x1D, 0x21, 0x00);
+    txt('------------------------------------------'); cmd(0x0A);
+    cmd(0x1B, 0x61, 0x01); txt('3 platos · impreso 20:41:09'); cmd(0x0A);
+    cmd(0x1B, 0x64, 0x03);               // ESC d 3  avanzar papel
+  } else {
+    cmd(0x1D, 0x21, 0x11);
+    txt('CUATRO DRAGONES'); cmd(0x0A);
+    cmd(0x1D, 0x21, 0x00);
+    txt('Jr. Lima · RUC 20512345678'); cmd(0x0A, 0x0A);
+    cmd(0x1B, 0x45, 0x01); txt('BOLETA DE VENTA'); cmd(0x1B, 0x45, 0x00); cmd(0x0A);
+    txt('N° 00214 · Mesa 7 · Caja 1'); cmd(0x0A);
+    cmd(0x1B, 0x61, 0x00);
+    txt('------------------------------------------'); cmd(0x0A);
+    txt('2x 02 Arroz chaufa                   24.00'); cmd(0x0A);
+    txt('1x 15 Wantan frito                   12.00'); cmd(0x0A);
+    txt('------------------------------------------'); cmd(0x0A);
+    cmd(0x1B, 0x45, 0x01); cmd(0x1D, 0x21, 0x01);
+    txt('TOTAL                            S/ 36.00'); cmd(0x0A);
+    cmd(0x1D, 0x21, 0x00); cmd(0x1B, 0x45, 0x00);
+    txt('Efectivo                             50.00'); cmd(0x0A);
+    txt('VUELTO                               14.00'); cmd(0x0A, 0x0A);
+    cmd(0x1B, 0x61, 0x01); txt('¡Gracias por su visita!'); cmd(0x0A);
+    cmd(0x1B, 0x64, 0x03);
+    cmd(0x1B, 0x70, 0x00, 0x19, 0xFA);   // ESC p  abrir el cajón: es la caja
+  }
+  cmd(0x1D, 0x56, 0x00);                 // GS V 0  corte total
   return new Uint8Array(b);
 }
 
 /* ── Botones ───────────────────────────────────────────────────────────── */
-$('#c-enlinea').onclick = () => mandarEstado({ enlinea: !estado.enlinea });
-$('#c-papel').onclick = () => mandarEstado({ papel: !estado.papel });
-$('#c-tapa').onclick = () => mandarEstado({ tapa: !estado.tapa });
-$('#c-ancho').onclick = () => mandarEstado({ ancho: estado.ancho === 80 ? 58 : 80 });
-$('#b-limpiar').onclick = () => fetch(BASE + '/limpiar', { method: 'POST' });
-$('#b-prueba').onclick = () => fetch(BASE + '/escpos', {
-  method: 'POST', headers: { 'Content-Type': 'application/octet-stream' },
-  body: ticketPrueba()
+$$('.impresora').forEach(sec => {
+  const dest = sec.dataset.dest;
+  sec.querySelectorAll('.chip[data-campo]').forEach(chip => {
+    chip.onclick = () => {
+      const campo = chip.dataset.campo;
+      const e = ROLLOS[dest].estado;
+      if (campo === 'ancho') return mandarEstado(dest, { ancho: e.ancho === 80 ? 58 : 80 });
+      mandarEstado(dest, { [campo]: !e[campo] });
+    };
+  });
+  sec.querySelector('[data-prueba]').onclick = () => fetch(`/escpos?destino=${dest}`, {
+    method: 'POST', headers: { 'Content-Type': 'application/octet-stream' },
+    body: ticketPrueba(dest)
+  });
 });
+
+$('#b-limpiar').onclick = () => fetch('/limpiar', { method: 'POST' });
 $('#b-seguir').onclick = e => {
   seguir = !seguir;
   e.currentTarget.setAttribute('aria-pressed', String(seguir));
@@ -350,15 +433,12 @@ $('#b-sonido').onclick = e => {
   e.currentTarget.setAttribute('aria-pressed', String(sonido));
 };
 
-$('#linea-puertos').textContent = `visor ${location.port || 80} · ESC/POS 9100`;
-
 /* La cuenta de columnas (42 en 80 mm) solo sale bien si sabemos cuánto mide
    de ancho un carácter en la monoespaciada que tenga este equipo: JetBrains
    Mono avanza .6 del alto, Consolas .55. En vez de suponerlo, se mide. */
 function calibrarFuente() {
   const s = document.createElement('span');
-  s.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;'
-                  + 'font:100px var(--mono)';
+  s.style.cssText = 'position:absolute;visibility:hidden;white-space:pre;font:100px var(--mono)';
   s.textContent = 'M'.repeat(50);
   document.body.appendChild(s);
   const avance = s.getBoundingClientRect().width / 50 / 100;
@@ -368,9 +448,10 @@ function calibrarFuente() {
 }
 
 calibrarFuente();
-pintarEstado();
+Object.keys(ROLLOS).forEach(pintarEstado);
+saludo();
 cargar();
 escuchar();
-// Si el flujo de eventos se cae (se reinició el emulador), el repaso cada
+// Si el flujo de eventos se cae (se reinició el servidor), el repaso cada
 // cinco segundos recupera lo que se haya perdido.
 setInterval(cargar, 5000);

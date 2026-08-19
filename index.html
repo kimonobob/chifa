@@ -13,7 +13,7 @@
 <link rel="stylesheet" media="print" onload="this.media='all'"
       href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Noto+Serif+SC:wght@700&display=swap">
 
-<link rel="stylesheet" href="assets/portada.css?v=10">
+<link rel="stylesheet" href="assets/portada.css?v=11">
 </head>
 <body>
 
@@ -27,6 +27,10 @@
       <small id="marca-sede">SISTEMA DE SALÓN</small>
     </div>
     <div class="reloj">
+      <button class="chip-nube" id="nube-btn" title="Sincronización entre equipos">
+        <span class="punto-nube" id="punto-nube"></span>
+        <span id="txt-nube">Sin sincronizar</span>
+      </button>
       <button class="salir-sede" id="salir-sede" hidden>Cambiar de local</button>
       <span class="punto"></span>
       <span id="reloj">—</span>
@@ -133,8 +137,45 @@
   </div>
 </div>
 
-<script src="assets/data.js?v=10"></script>
-<script src="assets/store.js?v=10"></script>
+<!-- Sincronización: dónde apuntan todos los equipos del local -->
+<div class="puerta" id="nube-panel" hidden>
+  <div class="puerta-caja ancha">
+    <p class="eyebrow">Chifa Cuatro Dragones</p>
+    <h1>Sincronizar equipos</h1>
+    <p class="puerta-nota">
+      Para que la tablet del mozo, la cocina y la caja vean <b>las mismas
+      mesas</b>, los tres equipos tienen que apuntar al mismo proyecto de
+      Supabase. Pega la URL y la clave <b>anon</b>: están en Supabase ›
+      Project&nbsp;Settings › API. Hay que hacerlo <b>en cada equipo</b>, una
+      sola vez.
+    </p>
+    <form class="form-nube" id="form-nube">
+      <label for="nube-url">URL del proyecto</label>
+      <input id="nube-url" autocomplete="off" spellcheck="false"
+             placeholder="https://xxxxxxxx.supabase.co">
+      <label for="nube-clave">Clave anon</label>
+      <input id="nube-clave" autocomplete="off" spellcheck="false"
+             placeholder="ey…">
+      <div class="form-nube-pie">
+        <button class="btn primario" type="submit">Guardar y probar</button>
+        <button class="btn fantasma" type="button" id="nube-quitar">Desconectar</button>
+        <button class="btn fantasma" type="button" id="nube-cerrar">Cerrar</button>
+      </div>
+      <p class="nube-msg" id="nube-msg" hidden></p>
+    </form>
+    <p class="puerta-nota" id="nube-equipos"></p>
+    <p class="puerta-nota chica">
+      Antes de la primera vez hay que crear las dos tablas: abre
+      <b>supabase.sql</b> de esta carpeta, pégalo en Supabase › SQL Editor y
+      dale a Run. Sin internet el sistema sigue funcionando solo, y sube lo
+      que se hizo apenas vuelve.
+    </p>
+  </div>
+</div>
+
+<script src="assets/data.js?v=11"></script>
+<script src="assets/nube.js?v=11"></script>
+<script src="assets/store.js?v=11"></script>
 <script>
   // ── Puerta: elegir el local ───────────────────────────────────────────────
   function pintarSedes() {
@@ -200,6 +241,78 @@
     Store.salirSede();
     revisarPuerta();
   };
+
+  // ── Sincronización entre equipos ─────────────────────────────────────────
+  const panelNube = document.getElementById('nube-panel');
+  const msgNube = document.getElementById('nube-msg');
+
+  function pintarChipNube() {
+    const estado = Store.estadoConexion();
+    const txt = { nube: 'Sincronizado', 'sin-conexion': 'Sin internet', local: 'Sin sincronizar' }[estado];
+    document.getElementById('txt-nube').textContent = txt;
+    document.getElementById('punto-nube').className = `punto-nube ${estado}`;
+    document.getElementById('nube-btn').title = {
+      nube: 'Todos los equipos del local ven lo mismo',
+      'sin-conexion': 'Se sigue trabajando acá; sube lo hecho cuando vuelva el internet',
+      local: 'Este equipo guarda solo lo suyo. Toca para conectarlo.'
+    }[estado];
+  }
+
+  function pintarEquipos() {
+    const p = document.getElementById('nube-equipos');
+    if (!Store.enNube() || !Store.sedeInfo()) { p.textContent = ''; return; }
+    const eq = Store.equiposConectados();
+    p.textContent = eq.length
+      ? `Conectados ahora: ${eq.map(x => x.pantalla).join(', ')}.`
+      : 'Todavía no se ve ningún otro equipo conectado.';
+  }
+
+  document.getElementById('nube-btn').onclick = () => {
+    const c = Nube.config() || { url: '', clave: '' };
+    document.getElementById('nube-url').value = c.url;
+    document.getElementById('nube-clave').value = c.clave;
+    msgNube.hidden = true;
+    panelNube.hidden = false;
+    pintarEquipos();
+  };
+  document.getElementById('nube-cerrar').onclick = () => { panelNube.hidden = true; };
+
+  document.getElementById('nube-quitar').onclick = () => {
+    Nube.guardarConfig(null);
+    aviso('Desconectado. Este equipo vuelve a guardar solo lo suyo.', 'ok');
+    pintarChipNube();
+  };
+
+  function aviso(t, tipo) {
+    msgNube.textContent = t;
+    msgNube.className = `nube-msg ${tipo}`;
+    msgNube.hidden = false;
+  }
+
+  document.getElementById('form-nube').addEventListener('submit', async e => {
+    e.preventDefault();
+    const url = document.getElementById('nube-url').value.trim();
+    const clave = document.getElementById('nube-clave').value.trim();
+    if (!url || !clave) return aviso('Faltan la URL o la clave', 'error');
+    Nube.guardarConfig({ url, clave });
+    aviso('Probando…', '');
+    const r = await Nube.probar();
+    if (!r.ok) {
+      /* Decir POR QUÉ falló: es la diferencia entre arreglarlo en un minuto
+         y quedarse mirando un botón que no funciona. */
+      return aviso(
+        /42P01|does not exist/i.test(r.motivo)
+          ? 'Conecta, pero faltan las tablas. Corre supabase.sql en el SQL Editor.'
+          : `No conecta: ${r.motivo}`, 'error');
+    }
+    const estado = await Store.arrancar();
+    pintarChipNube();
+    pintarEquipos();
+    pintar();
+    aviso(estado === 'nube'
+      ? '¡Listo! Este equipo ya comparte las mesas con los demás.'
+      : 'Guardado, pero no se pudo sincronizar todavía.', estado === 'nube' ? 'ok' : 'error');
+  });
 
   /* Sin local elegido no se ve nada: las tres pantallas trabajan sobre los
      datos de un local concreto. */
@@ -278,11 +391,19 @@
       });
   }
 
-  Store.on(pintar);
+  Store.on((tipo) => {
+    if (tipo === 'conexion') { pintarChipNube(); pintarEquipos(); return; }
+    pintar();
+  });
   revisarPuerta();
+  pintarChipNube();
   reloj();
   setInterval(reloj, 1000);
   setInterval(pintar, 15000);
+  setInterval(pintarEquipos, 5000);
+
+  /* Ponerse al día con el local antes de mostrar los números de la portada. */
+  Store.arrancar().then(() => { pintarChipNube(); pintar(); });
 </script>
 </body>
 </html>
