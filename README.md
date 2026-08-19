@@ -10,6 +10,7 @@ internet.
 | Mozo | `mozo.html` | Marca el código, elige mesa, manda a cocina |
 | Cocina | `cocina.html` | Ve las comandas e imprime |
 | Caja | `caja.html` | Cobra, vende bebidas, cierra el día |
+| Admin | `admin.html` | Reportes del dueño y alta de gente |
 
 `index.html` es la portada con las tres opciones y un resumen en vivo. Entra
 completa **en una sola pantalla, sin scroll**, tanto en monitor como en celular.
@@ -56,6 +57,62 @@ cuántos minutos**, y cuáles ya tienen platos listos para servir. Sirve para ve
 de un vistazo, desde cualquier equipo del local, si hay que mandar otro mozo al
 salón.
 
+## Quién entra: cuentas y puestos
+
+Elegido el local, el sistema pregunta **quién entra**. Cada persona tiene su
+nombre y su PIN, y ve solo lo suyo: el mozo entra a atender mesas y no le
+aparecen la caja, los reportes ni cuánto factura el chifa.
+
+| Puesto | Salón | Cocina | Caja | Admin | Ve el dinero |
+|---|---|---|---|---|---|
+| **Dueño** | sí | sí | sí | sí | sí |
+| **Caja** | sí | sí | sí | — | sí |
+| **Cocina** | — | sí | — | — | — |
+| **Mozo** | sí | — | — | — | — |
+
+Escribir la dirección a mano tampoco sirve: quien abra `caja.html` sin el
+puesto que toca sale rebotado a la portada.
+
+### La primera vez
+
+El chifa recién instalado **no pide nada**: se sigue trabajando igual, para no
+dejar a nadie fuera por una cuenta que todavía no existe. Para empezar a
+separar oficios, en el panel de locales está el botón **Admin · soy el dueño**:
+la primera vez crea la cuenta del dueño, y a partir de ahí ya se puede dar de
+alta al resto desde el panel.
+
+> Guarda bien el PIN del dueño. Si se pierde, la única salida es borrar los
+> datos del local y empezar de nuevo.
+
+### Qué es esto y qué no
+
+**Separa oficios, no guarda secretos.** El PIN va cifrado (SHA-256 con sal, así
+que no se lee de pasada ni delata a quien use el mismo número), pero un PIN de
+cuatro cifras se adivina probando, y los datos viven donde cualquier equipo del
+chifa pueda leerlos. Sirve para que cada uno haga lo suyo y para saber quién
+tomó cada mesa — no para proteger nada de alguien decidido.
+
+## El panel del dueño
+
+`admin.html`, cuarta tarjeta de la portada. Solo la ve quien tiene el puesto de
+dueño. Cuatro pestañas:
+
+- **Hoy** — cuánto entró, cuántas cuentas, ticket promedio y descuentos; el
+  reparto por medio de pago y **por mozo**; y la lista de las cuentas cobradas.
+- **La semana** — los últimos 7, 14 o 30 días en un gráfico de columnas, con el
+  día de hoy marcado aparte. Los días sin ventas salen en cero: un lunes vacío
+  también dice algo.
+- **Platos** — los que más salen y **los que no salen**, en 7, 30 o 90 días.
+  Los segundos incluyen platos de la carta que no se pidieron ni una vez, que
+  es lo que sirve para decidir qué sacar o qué recomendar.
+- **El equipo** — dar de alta, editar, cambiar el PIN, dar de baja o borrar.
+
+Dar de baja a alguien le corta el paso **al instante**, aunque tenga la sesión
+abierta en otra tablet y sin que nadie recargue nada.
+
+Los gráficos son barras de CSS, sin librerías: funcionan sin internet y se leen
+igual en la tablet que en el monitor de la caja.
+
 ## Cómo abrirlo
 
 **Opción rápida:** doble clic en `index.html`.
@@ -75,7 +132,7 @@ Y en el navegador: <http://127.0.0.1:8787>
 > trabajando con una versión que ya no existe — pasa, y cuesta mucho darse
 > cuenta.
 >
-> Los archivos además llevan un número de versión (`assets/store.js?v=12`). Si
+> Los archivos además llevan un número de versión (`assets/store.js?v=13`). Si
 > algún día tocas los archivos a mano, sube ese número en los cuatro `.html`
 > para que los navegadores recojan la versión nueva. Y si algo se ve raro tras
 > una actualización, recarga con **Ctrl+F5**.
@@ -541,6 +598,7 @@ index.html          portada y resumen en vivo
 mozo.html           pantalla del mozo
 cocina.html         pantalla de cocina
 caja.html           pantalla de caja
+admin.html          panel del dueño: reportes y equipo
 supabase.sql        las tablas para sincronizar los equipos — correr una vez
 assets/
   data.js           la carta: códigos, nombres, precios, notas rápidas
@@ -550,6 +608,7 @@ assets/
   mozo.js           lector de códigos, rueda, teclado, borradores
   cocina.js         tablero, cronómetros, impresión manual/automática
   caja.js           cobro, ventas del día, editor de carta
+  admin.js          reportes del dueño y alta de gente
   app.css           diseño de las tres pantallas + formato de ticket 80 mm
 servir.py           servidor local, sin caché (--red para las tablets)
 emulador/           las dos ticketeras de mentira, para probar

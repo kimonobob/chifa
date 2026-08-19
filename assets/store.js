@@ -90,6 +90,7 @@ const Store = (() => {
     version: 1,
     pedidos: [],
     ventas: [],
+    usuarios: [],        // quién entra y qué puede ver
     grupos: [],          // mesas unidas: [{ id, mesas:['3','4'], principal:'3' }]
     cartaEdits: {},
     seq: { pedido: 0, venta: 0 },
@@ -361,6 +362,281 @@ const Store = (() => {
     cache = null;
     oyentes.forEach(cb => cb('cambio'));
   });
+
+  /* ══ Quién entra y qué puede ver ═══════════════════════════════════════
+     El mozo no tiene por qué ver cuánto vendió el chifa hoy. Cada persona
+     entra con su nombre y su PIN, y la pantalla le muestra lo suyo.
+
+     Que quede claro qué es esto y qué no: sirve para separar oficios —que
+     el mozo no ande en la caja ni en los reportes—, NO para guardar un
+     secreto. Los datos viven en un sitio que cualquiera con la clave del
+     chifa puede leer, y un PIN de cuatro cifras se adivina probando. El PIN
+     va cifrado para que nadie lo lea de pasada, y hasta ahí llega.        */
+
+  const PERMISOS = {
+    admin:  { mozo: true,  cocina: true, caja: true,  admin: true,  dinero: true  },
+    caja:   { mozo: true,  cocina: true, caja: true,  admin: false, dinero: true  },
+    cocina: { mozo: false, cocina: true, caja: false, admin: false, dinero: false },
+    mozo:   { mozo: true,  cocina: false, caja: false, admin: false, dinero: false }
+  };
+  const NOMBRE_ROL = {
+    admin: 'Dueño', caja: 'Caja', cocina: 'Cocina', mozo: 'Mozo'
+  };
+
+  /* SHA-256 en JavaScript puro. Sin librerías y sin `crypto.subtle`, que no
+     existe fuera de HTTPS: el chifa abre el sistema por su red local, en
+     http, y ahí no lo tendría. Verificado contra los vectores oficiales. */
+  function sha256(mensaje) {
+    const K = [
+      0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+      0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+      0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+      0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+      0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+      0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+      0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+      0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+    ];
+    const H = [0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a,
+               0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19];
+
+    // El mensaje a bytes UTF-8, a mano: así da igual el navegador.
+    const b = [];
+    for (let i = 0; i < mensaje.length; i++) {
+      let c = mensaje.charCodeAt(i);
+      if (c < 0x80) b.push(c);
+      else if (c < 0x800) b.push(0xc0 | (c >> 6), 0x80 | (c & 63));
+      else if (c < 0xd800 || c >= 0xe000) b.push(0xe0 | (c >> 12), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+      else {
+        c = 0x10000 + (((c & 0x3ff) << 10) | (mensaje.charCodeAt(++i) & 0x3ff));
+        b.push(0xf0 | (c >> 18), 0x80 | ((c >> 12) & 63), 0x80 | ((c >> 6) & 63), 0x80 | (c & 63));
+      }
+    }
+
+    const bits = b.length * 8;
+    b.push(0x80);
+    while (b.length % 64 !== 56) b.push(0);
+    b.push(0, 0, 0, 0,
+           (bits >>> 24) & 255, (bits >>> 16) & 255, (bits >>> 8) & 255, bits & 255);
+
+    const gira = (x, n) => (x >>> n) | (x << (32 - n));
+    const w = new Array(64);
+
+    for (let bloque = 0; bloque < b.length; bloque += 64) {
+      for (let i = 0; i < 16; i++) {
+        w[i] = (b[bloque + i * 4] << 24) | (b[bloque + i * 4 + 1] << 16) |
+               (b[bloque + i * 4 + 2] << 8) | b[bloque + i * 4 + 3];
+      }
+      for (let i = 16; i < 64; i++) {
+        const s0 = gira(w[i - 15], 7) ^ gira(w[i - 15], 18) ^ (w[i - 15] >>> 3);
+        const s1 = gira(w[i - 2], 17) ^ gira(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+        w[i] = (w[i - 16] + s0 + w[i - 7] + s1) | 0;
+      }
+      let [a, bb, c, d, e, f, g, h] = H;
+      for (let i = 0; i < 64; i++) {
+        const S1 = gira(e, 6) ^ gira(e, 11) ^ gira(e, 25);
+        const ch = (e & f) ^ (~e & g);
+        const t1 = (h + S1 + ch + K[i] + w[i]) | 0;
+        const S0 = gira(a, 2) ^ gira(a, 13) ^ gira(a, 22);
+        const maj = (a & bb) ^ (a & c) ^ (bb & c);
+        const t2 = (S0 + maj) | 0;
+        h = g; g = f; f = e; e = (d + t1) | 0;
+        d = c; c = bb; bb = a; a = (t1 + t2) | 0;
+      }
+      [a, bb, c, d, e, f, g, h].forEach((v, i) => { H[i] = (H[i] + v) | 0; });
+    }
+    return H.map(x => (x >>> 0).toString(16).padStart(8, '0')).join('');
+  }
+
+  const cifrarPin = (pin, sal) => sha256(`${sal}:${String(pin).trim()}`);
+  const salNueva = () => Math.random().toString(36).slice(2, 12) + Date.now().toString(36);
+
+  const usuarios = () => (leer().usuarios || []).slice()
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  const usuario = id => (leer().usuarios || []).find(u => u.id === id) || null;
+  const hayUsuarios = () => (leer().usuarios || []).length > 0;
+  const hayAdmin = () => (leer().usuarios || []).some(u => u.rol === 'admin' && u.activo);
+
+  function crearUsuario({ nombre, rol = 'mozo', pin }) {
+    nombre = String(nombre || '').trim();
+    if (!nombre) return { ok: false, motivo: 'Falta el nombre' };
+    if (!PERMISOS[rol]) return { ok: false, motivo: 'Ese puesto no existe' };
+    if (!/^\d{4,8}$/.test(String(pin || '').trim())) {
+      return { ok: false, motivo: 'El PIN son de 4 a 8 números' };
+    }
+    if ((leer().usuarios || []).some(u => u.nombre.toLowerCase() === nombre.toLowerCase())) {
+      return { ok: false, motivo: 'Ya hay alguien con ese nombre' };
+    }
+    const sal = salNueva();
+    const u = {
+      id: `U${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`,
+      nombre, rol, sal, pin: cifrarPin(pin, sal), activo: true, creado: Date.now()
+    };
+    mutar(s => { (s.usuarios || (s.usuarios = [])).push(u); });
+    return { ok: true, usuario: u };
+  }
+
+  function editarUsuario(id, cambios = {}) {
+    let salida = { ok: false, motivo: 'No existe esa persona' };
+    mutar(s => {
+      const u = (s.usuarios || []).find(x => x.id === id);
+      if (!u) return;
+      if (cambios.nombre !== undefined) {
+        const n = String(cambios.nombre).trim();
+        if (!n) { salida = { ok: false, motivo: 'Falta el nombre' }; return; }
+        u.nombre = n;
+      }
+      if (cambios.rol !== undefined && PERMISOS[cambios.rol]) u.rol = cambios.rol;
+      if (cambios.activo !== undefined) u.activo = !!cambios.activo;
+      if (cambios.pin !== undefined) {
+        if (!/^\d{4,8}$/.test(String(cambios.pin).trim())) {
+          salida = { ok: false, motivo: 'El PIN son de 4 a 8 números' };
+          return;
+        }
+        u.sal = salNueva();
+        u.pin = cifrarPin(cambios.pin, u.sal);
+      }
+      salida = { ok: true };
+    });
+    return salida;
+  }
+
+  /* No se borra al último dueño: sin él nadie podría volver a entrar al
+     panel, y no hay forma de arreglarlo desde la propia pantalla. */
+  function borrarUsuario(id) {
+    const u = usuario(id);
+    if (!u) return { ok: false, motivo: 'No existe esa persona' };
+    if (u.rol === 'admin' && (leer().usuarios || []).filter(x => x.rol === 'admin').length === 1) {
+      return { ok: false, motivo: 'Es el único dueño: primero haz dueño a alguien más' };
+    }
+    mutar(s => { s.usuarios = (s.usuarios || []).filter(x => x.id !== id); });
+    if (sesion() && sesion().id === id) salir();
+    return { ok: true };
+  }
+
+  // ── La sesión de este equipo ─────────────────────────────────────────────
+  const CLAVE_SESION = () => `chifa:sesion:${sede()}`;
+
+  function sesion() {
+    try {
+      const g = JSON.parse(localStorage.getItem(CLAVE_SESION()));
+      if (!g || !g.id) return null;
+      /* Si al usuario le quitaron el puesto o lo dieron de baja desde otro
+         equipo, la sesión de este deja de valer al instante. */
+      const u = usuario(g.id);
+      if (!u || !u.activo) return null;
+      return { id: u.id, nombre: u.nombre, rol: u.rol };
+    } catch (e) { return null; }
+  }
+
+  function ingresar(id, pin) {
+    const u = usuario(id);
+    if (!u) return { ok: false, motivo: 'No existe esa persona' };
+    if (!u.activo) return { ok: false, motivo: `${u.nombre} está dado de baja` };
+    if (cifrarPin(pin, u.sal) !== u.pin) return { ok: false, motivo: 'Ese PIN no es' };
+    try { localStorage.setItem(CLAVE_SESION(), JSON.stringify({ id: u.id })); } catch (e) {}
+    avisar('sesion');
+    return { ok: true, sesion: sesion() };
+  }
+
+  /* El botón de admin de la portada: el dueño no elige su nombre de una
+     lista, entra directo con su PIN. */
+  function ingresarAdmin(pin) {
+    const duenos = (leer().usuarios || []).filter(u => u.rol === 'admin' && u.activo);
+    if (!duenos.length) return { ok: false, motivo: 'Todavía no hay ningún dueño creado' };
+    const u = duenos.find(x => cifrarPin(pin, x.sal) === x.pin);
+    if (!u) return { ok: false, motivo: 'Ese PIN no es' };
+    try { localStorage.setItem(CLAVE_SESION(), JSON.stringify({ id: u.id })); } catch (e) {}
+    avisar('sesion');
+    return { ok: true, sesion: sesion() };
+  }
+
+  function salir() {
+    try { localStorage.removeItem(CLAVE_SESION()); } catch (e) {}
+    avisar('sesion');
+  }
+
+  /* ¿Puede ver esta parte? Sin usuarios creados todavía, el sistema funciona
+     como siempre: un chifa a medio configurar no puede quedarse sin poder
+     tomar pedidos. */
+  function puede(que) {
+    if (!hayUsuarios()) return true;
+    const s = sesion();
+    if (!s) return false;
+    return !!(PERMISOS[s.rol] || {})[que];
+  }
+
+  /* Quién está tomando el pedido: la persona que entró, y si todavía no hay
+     cuentas creadas, lo que diga el selector de siempre. */
+  const quienSoy = () => (sesion() ? sesion().nombre : config().mozo);
+
+  // ── Reportes para el dueño ───────────────────────────────────────────────
+
+  const diaDe = ts => {
+    const d = new Date(ts);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  /* Los últimos N días, del más viejo al más nuevo, incluidos los días sin
+     ventas: un lunes en cero también dice algo. */
+  function resumenDias(n = 7) {
+    const dias = [];
+    for (let i = n - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const clave = diaDe(d.getTime());
+      const r = resumenDia(clave);
+      dias.push({ dia: clave, total: r.total, ventas: r.ventas, promedio: r.promedio });
+    }
+    return dias;
+  }
+
+  /* Ranking de platos en un puñado de días. Incluye los que NO se vendieron:
+     saber qué no sale es tan útil como saber qué vuela. */
+  function ranking(dias = 7) {
+    const desde = new Date();
+    desde.setDate(desde.getDate() - (dias - 1));
+    const corte = diaDe(desde.getTime());
+    const cuenta = new Map();
+
+    leer().ventas.filter(v => v.dia >= corte).forEach(v => {
+      v.lineas.forEach(l => {
+        const p = cuenta.get(l.codigo) || { codigo: l.codigo, nombre: l.nombre, cant: 0, importe: 0 };
+        p.cant += l.cant;
+        p.importe += l.pu * l.cant;
+        cuenta.set(l.codigo, p);
+      });
+    });
+
+    carta().forEach(p => {
+      if (!cuenta.has(p.c)) cuenta.set(p.c, { codigo: p.c, nombre: p.n, cant: 0, importe: 0, bar: !!p.bar });
+      else cuenta.get(p.c).bar = !!p.bar;
+    });
+
+    const todos = [...cuenta.values()].sort((a, b) => b.cant - a.cant || a.codigo - b.codigo);
+    return {
+      dias,
+      todos,
+      mas: todos.filter(p => p.cant > 0),
+      menos: todos.slice().reverse()
+    };
+  }
+
+  /* Cuánto trajo cada mozo. Sale de los pedidos que entraron en cada cuenta,
+     que es donde queda anotado quién la tomó. */
+  function porMozo(dia) {
+    const suma = {};
+    ventasDia(dia).forEach(v => {
+      (v.mozos && v.mozos.length ? v.mozos : ['—']).forEach(m => {
+        suma[m] = suma[m] || { mozo: m, total: 0, cuentas: 0 };
+        /* La cuenta se reparte entre quienes la atendieron: si dos mozos
+           tocaron la misma mesa, no se le regala el total a cada uno. */
+        suma[m].total += v.total / (v.mozos && v.mozos.length ? v.mozos.length : 1);
+        suma[m].cuentas += 1;
+      });
+    });
+    return Object.values(suma).sort((a, b) => b.total - a.total);
+  }
 
   // ── Carta ────────────────────────────────────────────────────────────────
   function carta() {
@@ -814,7 +1090,10 @@ const Store = (() => {
         mesaCorta: corta,
         cerrado: Date.now(),
         dia: hoy(),
-        cajero: s.config.caja,
+        cajero: sesion() ? sesion().nombre : s.config.caja,
+        /* Quién atendió la mesa: sin esto no se puede saber después cuánto
+           trajo cada mozo, y es lo primero que pregunta el dueño. */
+        mozos: [...new Set(pedidos.map(p => p.mozo).filter(Boolean))],
         lineas, subtotal, descuento, total, metodo, nota,
         recibido: metodo === 'Efectivo' ? recibido : total,
         vuelto: metodo === 'Efectivo' ? +(recibido - total).toFixed(2) : 0,
@@ -885,7 +1164,13 @@ const Store = (() => {
     anularPedido, quitarItem, marcarImpreso,
     pedidosActivos, pedidosCocina,
     cuentas, cuentaDe, lineasDe, precioItem, cobrar, ventasDia, resumenDia,
-    config, setConfig, cerrarDia, borrarTodo
+    config, setConfig, cerrarDia, borrarTodo,
+    /* Usuarios, permisos y reportes del dueño */
+    PERMISOS, NOMBRE_ROL, sha256,
+    usuarios, usuario, hayUsuarios, hayAdmin,
+    crearUsuario, editarUsuario, borrarUsuario,
+    sesion, ingresar, ingresarAdmin, salir, puede, quienSoy,
+    resumenDias, ranking, porMozo
   };
 })();
 

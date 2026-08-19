@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" media="print" onload="this.media='all'"
       href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Noto+Serif+SC:wght@700&display=swap">
-<link rel="stylesheet" href="assets/app.css?v=12">
+<link rel="stylesheet" href="assets/app.css?v=13">
 </head>
 <body data-app="caja">
 
@@ -161,20 +161,21 @@
  </div>
 </div>
 
-<script src="assets/data.js?v=12"></script>
-<script src="assets/nube.js?v=12"></script>
-<script src="assets/store.js?v=12"></script>
-<script src="assets/print.js?v=12"></script>
+<script src="assets/data.js?v=13"></script>
+<script src="assets/nube.js?v=13"></script>
+<script src="assets/store.js?v=13"></script>
+<script src="assets/print.js?v=13"></script>
 <script>
-  /* Sin local elegido no se trabaja: los datos son de un local concreto. */
+  /* Sin local, sin sesión o sin el puesto que toca, de vuelta a la portada.
+     Escribir la dirección a mano tampoco sirve: el mozo no entra a la caja. */
   (() => {
     const s = Store.sedeInfo();
-    if (!s) { location.replace('index.html'); return; }
+    if (!s || !Store.puede('caja')) { location.replace('index.html'); return; }
     const m = document.querySelector('.top .marca span');
     if (m) m.textContent = m.textContent + ' · ' + s.nombre;
   })();
 </script>
 
-<script src="assets/caja.js?v=12"></script>
+<script src="assets/caja.js?v=13"></script>
 </body>
 </html>

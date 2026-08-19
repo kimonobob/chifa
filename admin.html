@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin · Cuatro Dragones</title>
+<link rel="icon" href="assets/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" media="print" onload="this.media='all'"
+      href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Noto+Serif+SC:wght@700&display=swap">
+<link rel="stylesheet" href="assets/app.css?v=13">
+</head>
+<body data-app="admin">
+
+<header class="top">
+  <div class="marca">Cuatro <b>Dragones</b> <span>Admin</span></div>
+  <div class="crece"></div>
+  <span class="quien-top" id="quien-top"></span>
+  <div class="reloj" id="reloj"></div>
+  <a class="salir" href="index.html">Inicio</a>
+</header>
+
+<div class="admin">
+
+  <nav class="admin-tabs" id="tabs">
+    <button type="button" data-t="dia" class="on">Hoy</button>
+    <button type="button" data-t="semana">La semana</button>
+    <button type="button" data-t="platos">Platos</button>
+    <button type="button" data-t="gente">El equipo</button>
+  </nav>
+
+  <!-- ══ HOY ══ -->
+  <section class="admin-hoja" id="hoja-dia">
+    <div class="admin-cab">
+      <h1>El día de hoy</h1>
+      <span class="admin-fecha" id="fecha-hoy"></span>
+    </div>
+
+    <div class="tarjetas" id="tarjetas-dia"></div>
+
+    <div class="admin-dos">
+      <div class="bloque">
+        <h2>Por medio de pago</h2>
+        <div id="metodos-dia"></div>
+      </div>
+      <div class="bloque">
+        <h2>Por mozo</h2>
+        <div id="mozos-dia"></div>
+      </div>
+    </div>
+
+    <div class="bloque">
+      <h2>Las cuentas de hoy</h2>
+      <div class="tabla-caja" id="ventas-dia"></div>
+    </div>
+  </section>
+
+  <!-- ══ SEMANA ══ -->
+  <section class="admin-hoja" id="hoja-semana" hidden>
+    <div class="admin-cab">
+      <h1>Los últimos días</h1>
+      <div class="modo-toggle" id="rango-semana">
+        <button type="button" data-d="7" class="on">7 días</button>
+        <button type="button" data-d="14">14 días</button>
+        <button type="button" data-d="30">30 días</button>
+      </div>
+    </div>
+
+    <div class="tarjetas" id="tarjetas-semana"></div>
+
+    <div class="bloque">
+      <h2>Cuánto entró cada día</h2>
+      <div class="grafico-dias" id="grafico-dias"></div>
+    </div>
+  </section>
+
+  <!-- ══ PLATOS ══ -->
+  <section class="admin-hoja" id="hoja-platos" hidden>
+    <div class="admin-cab">
+      <h1>Qué se pide y qué no</h1>
+      <div class="modo-toggle" id="rango-platos">
+        <button type="button" data-d="7" class="on">7 días</button>
+        <button type="button" data-d="30">30 días</button>
+        <button type="button" data-d="90">90 días</button>
+      </div>
+    </div>
+
+    <div class="admin-dos">
+      <div class="bloque">
+        <h2>Los que más salen</h2>
+        <div class="barras" id="mas-pedidos"></div>
+      </div>
+      <div class="bloque">
+        <h2>Los que no salen</h2>
+        <p class="bloque-nota">
+          Platos de la carta que en este tiempo casi no se pidieron. Sirve
+          para decidir qué sacar, qué mover de sitio o qué recomendar.
+        </p>
+        <div class="barras flojos" id="menos-pedidos"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ EL EQUIPO ══ -->
+  <section class="admin-hoja" id="hoja-gente" hidden>
+    <div class="admin-cab">
+      <h1>Quién entra al sistema</h1>
+      <button class="btn lacado" id="nuevo-usuario">Dar de alta a alguien</button>
+    </div>
+
+    <p class="aviso-seguridad">
+      Esto separa oficios: el mozo entra a atender mesas y no ve la caja ni
+      estos reportes. <b>No es una caja fuerte</b> — un PIN de cuatro cifras se
+      adivina probando, y los datos viven donde el chifa los pueda leer desde
+      cualquier equipo. Sirve para que cada uno haga lo suyo, no para guardar
+      un secreto.
+    </p>
+
+    <div class="bloque">
+      <div class="gente" id="gente"></div>
+    </div>
+
+    <div class="bloque">
+      <h2>Qué puede ver cada puesto</h2>
+      <div class="tabla-caja" id="tabla-permisos"></div>
+    </div>
+  </section>
+</div>
+
+<!-- Alta y edición de personas -->
+<div class="llevar-fondo" id="dlg-usuario" hidden>
+  <div class="llevar-caja angosta">
+    <header class="llevar-cab">
+      <h2 id="usuario-titulo">Dar de alta</h2>
+    </header>
+    <form class="cuerpo-usuario" id="form-usuario">
+      <div class="campo">
+        <label for="u-nombre">Nombre</label>
+        <input id="u-nombre" autocomplete="off" placeholder="Cómo se llama">
+      </div>
+      <div class="campo">
+        <label for="u-rol">Puesto</label>
+        <select id="u-rol">
+          <option value="mozo">Mozo — solo el salón</option>
+          <option value="cocina">Cocina — solo las comandas</option>
+          <option value="caja">Caja — salón, cocina y cobros</option>
+          <option value="admin">Dueño — todo, y estos reportes</option>
+        </select>
+      </div>
+      <div class="campo">
+        <label for="u-pin" id="u-pin-etq">PIN (4 a 8 números)</label>
+        <input id="u-pin" type="password" inputmode="numeric" autocomplete="off" placeholder="••••">
+      </div>
+      <p class="nube-msg" id="u-msg" hidden></p>
+      <footer class="llevar-pie">
+        <button class="btn fantasma" type="button" id="u-cancelar">Cancelar</button>
+        <button class="btn lacado grande" type="submit">Guardar</button>
+      </footer>
+    </form>
+  </div>
+</div>
+
+<script src="assets/data.js?v=13"></script>
+<script src="assets/nube.js?v=13"></script>
+<script src="assets/store.js?v=13"></script>
+<script src="assets/print.js?v=13"></script>
+<script>
+  /* Esta pantalla es solo del dueño: sin local, sin sesión o sin el puesto,
+     de vuelta a la portada. */
+  (() => {
+    if (!Store.sedeInfo() || !Store.puede('admin')) { location.replace('index.html'); return; }
+    const s = Store.sedeInfo();
+    const m = document.querySelector('.top .marca span');
+    if (m) m.textContent = m.textContent + ' · ' + s.nombre;
+  })();
+</script>
+
+<script src="assets/admin.js?v=13"></script>
+</body>
+</html>

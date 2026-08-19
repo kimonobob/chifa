@@ -13,7 +13,7 @@
 <link rel="stylesheet" media="print" onload="this.media='all'"
       href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Noto+Serif+SC:wght@700&display=swap">
 
-<link rel="stylesheet" href="assets/portada.css?v=12">
+<link rel="stylesheet" href="assets/portada.css?v=13">
 </head>
 <body>
 
@@ -27,6 +27,10 @@
       <small id="marca-sede">SISTEMA DE SALÓN</small>
     </div>
     <div class="reloj">
+      <button class="chip-quien" id="chip-quien" hidden>
+        <span id="chip-quien-nombre">—</span>
+        <span class="chip-rol" id="chip-quien-rol"></span>
+      </button>
       <button class="chip-nube" id="nube-btn" title="Sincronización entre equipos">
         <span class="punto-nube" id="punto-nube"></span>
         <span id="txt-nube">Sin sincronizar</span>
@@ -115,6 +119,16 @@
       <span class="desc">Cobra la mesa, agrega gaseosas y cierra el día.</span>
       <span class="dato" id="dato-caja">—</span>
     </a>
+
+    <a class="opcion" href="admin.html" data-permiso="admin" hidden>
+      <span class="cab">
+        <span class="num">04</span>
+        <span class="han">主</span>
+      </span>
+      <span class="titulo">ADMIN</span>
+      <span class="desc">Reportes del día y la semana, platos más pedidos y quién entra.</span>
+      <span class="dato" id="dato-admin">—</span>
+    </a>
   </nav>
 
   <footer class="pie">
@@ -134,6 +148,50 @@
       código para entrar.
     </p>
     <div class="sedes" id="sedes"></div>
+    <div class="puerta-extra">
+      <button class="btn-admin" id="admin-btn">
+        <span class="han">主</span> Admin · soy el dueño
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Quién entra: cada uno ve lo suyo y nada más -->
+<div class="puerta" id="quien" hidden>
+  <div class="puerta-caja ancha">
+    <p class="eyebrow" id="quien-local">Chifa Cuatro Dragones</p>
+    <h1>¿Quién entra?</h1>
+    <p class="puerta-nota" id="quien-nota">Toca tu nombre y marca tu PIN.</p>
+
+    <div class="quien-lista" id="quien-lista"></div>
+
+    <!-- Primera vez en este local: todavía no hay nadie creado -->
+    <form class="form-nube" id="form-primero" hidden>
+      <label for="primero-nombre">Tu nombre</label>
+      <input id="primero-nombre" autocomplete="off" placeholder="Cómo te llamas">
+      <label for="primero-pin">Un PIN de 4 a 8 números</label>
+      <input id="primero-pin" type="password" inputmode="numeric" autocomplete="off" placeholder="••••">
+      <div class="form-nube-pie">
+        <button class="btn primario" type="submit">Crear y entrar</button>
+      </div>
+      <p class="nube-msg" id="primero-msg" hidden></p>
+    </form>
+
+    <div class="quien-pie">
+      <button class="btn fantasma" id="quien-volver">Cambiar de local</button>
+    </div>
+  </div>
+</div>
+
+<!-- El PIN, con teclado grande: esto se marca con el dedo -->
+<div class="puerta" id="pin-panel" hidden>
+  <div class="puerta-caja angosta">
+    <p class="eyebrow" id="pin-quien">—</p>
+    <h1>Marca tu PIN</h1>
+    <div class="pin-puntos" id="pin-puntos" aria-live="polite"></div>
+    <div class="pin-pad" id="pin-pad"></div>
+    <p class="nube-msg" id="pin-msg" hidden></p>
+    <button class="btn fantasma bloque" id="pin-cancelar">Volver</button>
   </div>
 </div>
 
@@ -173,9 +231,9 @@
   </div>
 </div>
 
-<script src="assets/data.js?v=12"></script>
-<script src="assets/nube.js?v=12"></script>
-<script src="assets/store.js?v=12"></script>
+<script src="assets/data.js?v=13"></script>
+<script src="assets/nube.js?v=13"></script>
+<script src="assets/store.js?v=13"></script>
 <script>
   // ── Puerta: elegir el local ───────────────────────────────────────────────
   function pintarSedes() {
@@ -314,23 +372,195 @@
       : 'Guardado, pero no se pudo sincronizar todavía.', estado === 'nube' ? 'ok' : 'error');
   });
 
-  /* Sin local elegido no se ve nada: las tres pantallas trabajan sobre los
-     datos de un local concreto. */
+  /* ══ Las dos puertas ═══════════════════════════════════════════════════
+     Primera: en qué local se trabaja. Segunda: quién entra. Hasta pasar las
+     dos no se ve nada, porque cada pantalla trabaja sobre los datos de un
+     local y cada persona ve solo lo suyo. */
   function revisarPuerta() {
     const s = Store.sedeInfo();
+    const yo = Store.sesion();
+    const dentro = !!(s && (yo || !Store.hayUsuarios()));
+
     document.getElementById('puerta').hidden = !!s;
+    document.getElementById('quien').hidden = !(s && !dentro);
     document.getElementById('salir-sede').hidden = !s;
     document.getElementById('marca-sede').textContent =
       s ? s.nombre.toUpperCase() : 'SISTEMA DE SALÓN';
+
+    // Cada pantalla se ve solo si el puesto de quien entró la alcanza.
     document.querySelectorAll('.opcion').forEach(a => {
-      a.style.pointerEvents = s ? '' : 'none';
-      a.style.opacity = s ? '' : '.35';
+      const permiso = a.dataset.permiso || a.getAttribute('href').replace('.html', '');
+      const alcanza = dentro && Store.puede(permiso);
+      a.hidden = !alcanza && !!a.dataset.permiso;   // Admin ni siquiera aparece
+      a.style.pointerEvents = alcanza ? '' : 'none';
+      a.style.opacity = alcanza ? '' : '.28';
     });
+
+    pintarQuienSoy();
     /* Los locales se pintan siempre: si por lo que sea la puerta llegara a
        verse, nunca puede salir vacía. */
     pintarSedes();
-    if (s) pintar();
+    if (s) { pintarQuien(); pintar(); }
   }
+
+  function pintarQuienSoy() {
+    const yo = Store.sesion();
+    const chip = document.getElementById('chip-quien');
+    chip.hidden = !yo;
+    if (!yo) return;
+    document.getElementById('chip-quien-nombre').textContent = yo.nombre;
+    document.getElementById('chip-quien-rol').textContent = Store.NOMBRE_ROL[yo.rol] || yo.rol;
+    chip.title = `${yo.nombre} · ${Store.NOMBRE_ROL[yo.rol]} — tocar para salir`;
+  }
+
+  document.getElementById('chip-quien').onclick = () => {
+    Store.salir();
+    revisarPuerta();
+  };
+
+  // ── ¿Quién entra? ────────────────────────────────────────────────────────
+  function pintarQuien() {
+    const primeraVez = !Store.hayUsuarios();
+    document.getElementById('form-primero').hidden = !primeraVez;
+    document.getElementById('quien-lista').hidden = primeraVez;
+    document.getElementById('quien-nota').textContent = primeraVez
+      ? 'Este local todavía no tiene a nadie. Crea la cuenta del dueño: desde ella se dan de alta los mozos y la caja.'
+      : 'Toca tu nombre y marca tu PIN.';
+    const s = Store.sedeInfo();
+    document.getElementById('quien-local').textContent = s ? s.nombre : 'Chifa Cuatro Dragones';
+    if (primeraVez) return;
+
+    const gente = Store.usuarios().filter(u => u.activo);
+    document.getElementById('quien-lista').innerHTML = gente.map(u => `
+      <button type="button" class="quien-tarjeta" data-quien="${u.id}">
+        <span class="qi">${UI.esc(u.nombre.slice(0, 1).toUpperCase())}</span>
+        <span class="qn">${UI.esc(u.nombre)}</span>
+        <span class="qr">${UI.esc(Store.NOMBRE_ROL[u.rol] || u.rol)}</span>
+      </button>`).join('') ||
+      '<p class="puerta-nota">No hay nadie dado de alta. Entra como dueño desde el botón Admin.</p>';
+  }
+
+  document.getElementById('quien-lista').addEventListener('click', e => {
+    const b = e.target.closest('[data-quien]');
+    if (!b) return;
+    const u = Store.usuario(b.dataset.quien);
+    if (u) pedirPin(u.nombre, pin => Store.ingresar(u.id, pin));
+  });
+
+  document.getElementById('quien-volver').onclick = () => {
+    Store.salirSede();
+    revisarPuerta();
+  };
+
+  document.getElementById('form-primero').addEventListener('submit', e => {
+    e.preventDefault();
+    const msg = document.getElementById('primero-msg');
+    const r = Store.crearUsuario({
+      nombre: document.getElementById('primero-nombre').value,
+      rol: 'admin',
+      pin: document.getElementById('primero-pin').value
+    });
+    if (!r.ok) {
+      msg.textContent = r.motivo;
+      msg.className = 'nube-msg error';
+      msg.hidden = false;
+      return;
+    }
+    Store.ingresar(r.usuario.id, document.getElementById('primero-pin').value);
+    revisarPuerta();
+  });
+
+  // ── El teclado del PIN ───────────────────────────────────────────────────
+  /* Numérico y grande: esto se marca con el dedo en una tablet, de pie y con
+     el salón lleno. */
+  let pinBuf = '', pinComprobar = null;
+
+  document.getElementById('pin-pad').innerHTML =
+    ['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', '✓']
+      .map(k => `<button type="button" data-pin="${k}" class="${k === '✓' ? 'ok' : (k === '⌫' ? 'aux' : '')}">${k}</button>`)
+      .join('');
+
+  function pintarPin() {
+    document.getElementById('pin-puntos').innerHTML =
+      Array.from({ length: 8 }, (_, i) =>
+        `<span class="${i < pinBuf.length ? 'lleno' : ''}"></span>`).join('');
+  }
+
+  function pedirPin(quien, comprobar) {
+    pinBuf = '';
+    pinComprobar = comprobar;
+    document.getElementById('pin-quien').textContent = quien;
+    document.getElementById('pin-msg').hidden = true;
+    document.getElementById('pin-panel').hidden = false;
+    pintarPin();
+  }
+
+  function cerrarPin() {
+    document.getElementById('pin-panel').hidden = true;
+    pinBuf = '';
+    pinComprobar = null;
+  }
+
+  function probarPin() {
+    if (!pinComprobar) return;
+    const r = pinComprobar(pinBuf);
+    if (r && r.ok) {
+      cerrarPin();
+      revisarPuerta();
+      return;
+    }
+    const msg = document.getElementById('pin-msg');
+    msg.textContent = (r && r.motivo) || 'Ese PIN no es';
+    msg.className = 'nube-msg error';
+    msg.hidden = false;
+    pinBuf = '';
+    pintarPin();
+  }
+
+  document.getElementById('pin-pad').addEventListener('click', e => {
+    const b = e.target.closest('[data-pin]');
+    if (!b) return;
+    const k = b.dataset.pin;
+    if (k === '⌫') pinBuf = pinBuf.slice(0, -1);
+    else if (k === '✓') return probarPin();
+    else if (pinBuf.length < 8) pinBuf += k;
+    document.getElementById('pin-msg').hidden = true;
+    pintarPin();
+    // Con 4 cifras ya se puede probar solo: la mayoría usa PIN de 4.
+    if (pinBuf.length === 8) probarPin();
+  });
+
+  document.getElementById('pin-cancelar').onclick = cerrarPin;
+
+  document.addEventListener('keydown', e => {
+    if (document.getElementById('pin-panel').hidden) return;
+    if (/^\d$/.test(e.key) && pinBuf.length < 8) { pinBuf += e.key; pintarPin(); }
+    else if (e.key === 'Backspace') { pinBuf = pinBuf.slice(0, -1); pintarPin(); }
+    else if (e.key === 'Enter') probarPin();
+    else if (e.key === 'Escape') cerrarPin();
+  });
+
+  /* El dueño no se busca en la lista: entra directo con su PIN. Y no necesita
+     el código del local — el local es suyo. */
+  document.getElementById('admin-btn').onclick = async () => {
+    if (!Store.sedeInfo()) {
+      const abierta = SEDES.find(s => s.abierta);
+      if (!abierta) return;
+      await Store.entrarSede(abierta.id);
+      revisarPuerta();
+    }
+    /* Primera vez: todavía no hay dueño a quien pedirle el PIN, así que lo
+       que toca es crearlo. Hay que abrir la puerta a mano: con el chifa sin
+       cuentas está escondida a propósito, para no bloquear a nadie. */
+    if (!Store.hayUsuarios()) {
+      pintarQuien();
+      document.getElementById('quien').hidden = false;
+      const n = document.getElementById('primero-nombre');
+      if (n) n.focus();
+      return;
+    }
+    pedirPin('Dueño', pin => Store.ingresarAdmin(pin));
+  };
 
   /* Los tres datos de las tarjetas salen del estado real del chifa. */
   function pintar() {
@@ -350,8 +580,17 @@
         ? `${cocina.length} pedido${cocina.length === 1 ? '' : 's'} · ${platos} plato${platos === 1 ? '' : 's'}`
         : 'Cocina al día';
 
-    document.getElementById('dato-caja').textContent =
-      `${UI.soles(r.total)} · ${r.ventas} cuenta${r.ventas === 1 ? '' : 's'}`;
+    /* El dinero del día solo lo ve quien tiene por qué verlo: el mozo entra
+       a atender mesas, no a saber cuánto factura el chifa. */
+    document.getElementById('dato-caja').textContent = Store.puede('dinero')
+      ? `${UI.soles(r.total)} · ${r.ventas} cuenta${r.ventas === 1 ? '' : 's'}`
+      : `${r.ventas} cuenta${r.ventas === 1 ? '' : 's'} cobrada${r.ventas === 1 ? '' : 's'}`;
+
+    const admin = document.getElementById('dato-admin');
+    if (admin) {
+      const gente = Store.usuarios().filter(u => u.activo).length;
+      admin.textContent = `${UI.soles(r.total)} hoy · ${gente} en el equipo`;
+    }
 
     pintarPendientes(cuentas);
   }
@@ -393,7 +632,9 @@
 
   Store.on((tipo) => {
     if (tipo === 'conexion') { pintarChipNube(); pintarEquipos(); return; }
-    pintar();
+    /* Si desde otro equipo dieron de alta a alguien —o le quitaron el
+       puesto—, esta pantalla tiene que enterarse sin recargar. */
+    revisarPuerta();
   });
   revisarPuerta();
   pintarChipNube();

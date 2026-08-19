@@ -700,7 +700,7 @@
     /* Los platos van a cocina; las bebidas se suman a la cuenta y las lleva
        el mozo, sin comanda: no hay nada que preparar. */
     const { comida, barra } = Store.enviarRonda({
-      mesa: st.mesa, mozo: Store.config().mozo, items
+      mesa: st.mesa, mozo: Store.quienSoy(), items
     });
     st.borradores[st.mesa] = [];
     guardarBorradores();
@@ -892,9 +892,19 @@
   }
 
   // ── Arranque ─────────────────────────────────────────────────────────────
+  /* Con cuentas creadas, el pedido lo firma quien entró y el selector
+     sobra: nadie tiene que acordarse de cambiarlo, ni puede firmar por otro. */
   const selMozo = $('#sel-mozo');
-  selMozo.value = Store.config().mozo;
-  selMozo.onchange = () => Store.setConfig({ mozo: selMozo.value });
+  const yo = Store.sesion();
+  if (yo) {
+    const etq = document.createElement('span');
+    etq.className = 'quien-top';
+    etq.textContent = yo.nombre;
+    selMozo.replaceWith(etq);
+  } else {
+    selMozo.value = Store.config().mozo;
+    selMozo.onchange = () => Store.setConfig({ mozo: selMozo.value });
+  }
 
   pintarRueda();
   irASalon();

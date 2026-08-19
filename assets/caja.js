@@ -340,7 +340,7 @@
     /* Misma regla que en el mozo: los platos van a cocina, las bebidas solo
        se suman a la cuenta. */
     const { comida, barra } = Store.enviarRonda({
-      mesa: llevar.mesa, mozo: Store.config().caja, items: llevar.items
+      mesa: llevar.mesa, mozo: Store.quienSoy(), items: llevar.items
     });
     /* La comanda sale por la ticketera de la cocina, no por la de la caja:
        en la caja se imprimen boletas, no papeles de cocina. */
