@@ -498,28 +498,65 @@ body[data-app="mozo"], body[data-app="cocina"], body[data-app="caja"] {
 /* ── Bebidas a un toque, bajo el teclado y las notas ──────────────────────
    Aprovecha el hueco que quedaba ahí. Un toque en la categoría, un toque en
    la bebida, y ya está en la cuenta: ninguna pasa por cocina. */
-.bebidas { border-top: 1px solid var(--linea); padding: 12px 18px 14px; }
-.beb-cab { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.bebidas {
+  border-top: 1px solid var(--linea); padding: 14px 18px 16px;
+  background: var(--panel-2);        /* despega el bloque del teclado */
+}
+.beb-cab { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
 .beb-cab .eyebrow { margin: 0; flex: 0 0 auto; }
+
 /* El min-width: 0 es el que deja que la fila haga su propio scroll en vez de
    estirar la columna entera. */
-.beb-cats { display: flex; gap: 6px; min-width: 0; overflow-x: auto; scrollbar-width: thin; }
-.beb-cats .cat-chip { flex: 0 0 auto; }
+.beb-cats {
+  display: flex; gap: 8px; min-width: 0;
+  overflow-x: auto; scrollbar-width: thin; padding-bottom: 3px;
+}
+.beb-cats .cat-chip {
+  flex: 0 0 auto; min-height: 46px; padding: 12px 20px; border-radius: 100px;
+  background: var(--panel); border: 1px solid var(--linea); color: var(--txt-dim);
+  font-size: .95rem; font-weight: 600;
+}
+.beb-cats .cat-chip.on {
+  background: var(--lacado); border-color: var(--lacado); color: #fff;
+  box-shadow: 0 6px 16px -9px rgba(192,16,24,.8);
+}
+
+/* Rejilla en vez de fila suelta: los botones quedan alineados y todos del
+   mismo tamaño, que es lo que se busca con el dedo sin mirar. */
 .beb-chips {
-  display: flex; flex-wrap: wrap; align-content: flex-start; gap: 7px;
-  max-height: 178px; overflow-y: auto; scrollbar-width: thin;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(212px, 1fr));
+  gap: 9px; align-content: start;
+  max-height: 224px; overflow-y: auto; scrollbar-width: thin;
 }
 .beb-chip {
-  display: inline-flex; align-items: baseline; gap: 9px; max-width: 100%;
-  padding: 10px 14px; text-align: left; line-height: 1.2;
-  background: var(--panel); border: 1px solid var(--linea);
-  border-radius: 100px; font-size: .9rem;
+  position: relative; overflow: hidden;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center;
+  gap: 10px; min-height: 64px; padding: 12px 14px 12px 18px; text-align: left;
+  background: var(--panel); border: 1px solid var(--linea); border-radius: 6px;
+  box-shadow: var(--sombra);
 }
-.beb-chip .bn { min-width: 0; }
-.beb-chip .bp { flex: 0 0 auto; font-family: var(--mono); font-size: .8rem; color: var(--txt-dim); }
-.beb-chip:active { background: var(--tinta); color: var(--laton-cla); border-color: var(--tinta); }
-.beb-chip:active .bp { color: var(--laton-cla); }
-.beb-chip.agotado { opacity: .4; text-decoration: line-through; }
+/* Un filete de laca a la izquierda: da el color de la casa sin pintar de
+   rojo el botón entero. */
+.beb-chip::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--lacado);
+}
+.beb-chip .bn {
+  min-width: 0; font-size: 1rem; font-weight: 600; line-height: 1.22; color: var(--txt);
+}
+.beb-chip .bp {
+  font-family: var(--mono); font-size: .9rem; font-weight: 600; white-space: nowrap;
+  color: var(--lacado); background: rgba(192,16,24,.08);
+  padding: 5px 9px; border-radius: 4px;
+}
+.beb-chip:active {
+  background: var(--lacado); border-color: var(--lacado); transform: translateY(1px);
+}
+.beb-chip:active::before { background: rgba(255,255,255,.5); }
+.beb-chip:active .bn { color: #fff; }
+.beb-chip:active .bp { color: #fff; background: rgba(255,255,255,.2); }
+.beb-chip.agotado { opacity: .38; box-shadow: none; }
+.beb-chip.agotado .bn { text-decoration: line-through; }
 
 /* Atajos de teclado, al final de la columna */
 .atajos {
