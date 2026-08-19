@@ -1,230 +1,504 @@
 /* Panel del dueño: cuánto entró, qué se pide y quién entra al sistema.
+   Implementa el diseño "Panel Admin v2" hecho en Claude Design.
 
-   Los gráficos van con barras de CSS, sin librerías. Además de funcionar sin
-   internet, se leen igual en la tablet del chifa que en la computadora de la
-   caja, y no hay nada que actualizar el día que la librería cambie.        */
+   Los gráficos van con SVG y barras de CSS, sin librerías. Además de
+   funcionar sin internet, se leen igual en la tablet del chifa que en la
+   computadora de la caja, y no hay nada que actualizar el día que la
+   librería cambie.                                                        */
 
 (() => {
   const $ = s => document.querySelector(s);
   const $$ = s => [...document.querySelectorAll(s)];
 
-  let hoja = 'dia';
-  let diasSemana = 7;
-  let diasPlatos = 7;
+  let vista = 'hoy';          // 'hoy' | 'semana' | 'equipo'
+  let mezcla = 'top';         // 'top' | 'low'
+  let rolAlta = 'mozo';
+  let editando = null;
 
-  // ── Piezas que se repiten ────────────────────────────────────────────────
-  const tarjeta = (etq, valor, pie = '') => `
-    <div class="tarjeta">
-      <span class="t-etq">${UI.esc(etq)}</span>
-      <span class="t-val">${valor}</span>
-      ${pie ? `<span class="t-pie">${pie}</span>` : ''}
-    </div>`;
-
-  /* Una fila del gráfico. `parte` va de 0 a 1 y es lo que mide la barra:
-     siempre contra el máximo de la tanda, que es lo que deja comparar. */
-  const barra = (etq, valor, parte, extra = '') => `
-    <div class="barra-fila">
-      <span class="b-etq" title="${UI.esc(etq)}">${UI.esc(etq)}</span>
-      <span class="b-riel"><span class="b-relleno" style="width:${Math.max(parte * 100, valor > 0 ? 2 : 0)}%"></span></span>
-      <span class="b-val">${valor}${extra}</span>
-    </div>`;
-
-  const nombreDia = clave => {
+  const NOMBRE_DIA = clave => {
     const [a, m, d] = clave.split('-').map(Number);
-    const f = new Date(a, m - 1, d);
-    return f.toLocaleDateString('es-PE', { weekday: 'short', day: '2-digit', month: '2-digit' });
+    return new Date(a, m - 1, d).toLocaleDateString('es-PE', { weekday: 'short' }).toUpperCase().slice(0, 3);
+  };
+  const iniciales = n => n.trim().split(/\s+/).map(p => p[0]).join('').slice(0, 2).toUpperCase();
+  const soles = n => UI.soles(n);
+
+  /* Hace cuánto, en palabras. "hoy 13:42" dice más que una fecha completa
+     cuando lo que se quiere saber es si alguien entró esta mañana. */
+  function cuando(ts) {
+    if (!ts) return 'nunca entró';
+    const dias = Math.floor((Date.now() - ts) / 86400000);
+    /* En 24 horas y sin "p. m.": esto va en una fila estrecha y con el
+       formato largo se parte en dos líneas. */
+    const hora = new Date(ts).toLocaleTimeString('es-PE',
+      { hour: '2-digit', minute: '2-digit', hour12: false });
+    if (Store.diaDe(ts) === Store.hoy()) return `hoy ${hora}`;
+    if (dias <= 1) return `ayer ${hora}`;
+    if (dias < 30) return `hace ${dias} días`;
+    return UI.fecha(ts);
+  }
+
+  // ── El día de ayer, para poder comparar ──────────────────────────────────
+  const diaAtras = n => {
+    const d = new Date();
+    d.setDate(d.getDate() - n);
+    return Store.diaDe(d.getTime());
   };
 
+  /* Un porcentaje de cambio solo tiene sentido si había algo con qué
+     comparar. Sin datos de ayer se dice "sin comparar" en vez de inventar
+     un +100% que no significa nada. */
+  function variacion(hoy, antes) {
+    if (!antes) return { txt: 'sin comparar', sube: null };
+    const p = ((hoy - antes) / antes) * 100;
+    return {
+      txt: `${p >= 0 ? '+' : '−'}${Math.abs(p).toFixed(1)}%`,
+      sube: p >= 0
+    };
+  }
+
+  // ── Piezas ───────────────────────────────────────────────────────────────
+  function kpi({ etq, cifra, delta, sube, nota, serie }) {
+    const max = Math.max(1, ...serie);
+    const clase = sube === null ? 'sin' : (sube ? '' : 'baja');
+    return `
+      <div class="kpi">
+        <div class="fila">
+          <span class="etq">${UI.esc(etq)}</span>
+          <span class="delta ${clase}">${UI.esc(delta)}</span>
+        </div>
+        <div class="cifra">${UI.esc(cifra)}</div>
+        <div class="chispa ${sube === false ? 'baja' : ''}">
+          ${serie.map(v => `<span style="height:${Math.max(12, Math.round((v / max) * 100))}%"></span>`).join('')}
+        </div>
+        <div class="nota">${UI.esc(nota)}</div>
+      </div>`;
+  }
+
+  /* El camino de la curva. `cerrar` la baja hasta el suelo para poder
+     pintarla rellena. */
+  function camino(vals, max, cerrar) {
+    const W = 640, H = 198, aire = 8;
+    const pts = vals.map((v, i) => [
+      Math.round(((i / Math.max(1, vals.length - 1)) * W) * 10) / 10,
+      Math.round((H - (v / max) * (H - aire)) * 10) / 10
+    ]);
+    const linea = pts.map((p, i) => `${i ? 'L' : 'M'}${p[0]} ${p[1]}`).join(' ');
+    return { d: cerrar ? `${linea} L${W} ${H} L0 ${H} Z` : linea, pts };
+  }
+
+  function pintarCurva(vals, previos, etiquetas) {
+    const max = Math.max(1, ...vals, ...previos) * 1.08;
+    const actual = camino(vals, max, false);
+    const area = camino(vals, max, true);
+    const antes = camino(previos, max, false);
+    $('#linea').setAttribute('d', actual.d);
+    $('#area').setAttribute('d', area.d);
+    $('#linea-previa').setAttribute('d', antes.d);
+    $('#puntos').innerHTML = actual.pts.map(p =>
+      `<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="#fffdf9" stroke="#c01018"
+               stroke-width="2.5" vector-effect="non-scaling-stroke"></circle>`).join('');
+    $('#eje').innerHTML = etiquetas.map(e => `<span>${UI.esc(e)}</span>`).join('');
+  }
+
   // ══ HOY ═══════════════════════════════════════════════════════════════════
-  function pintarDia() {
+  function pintarHoy() {
     const r = Store.resumenDia();
-    $('#fecha-hoy').textContent = new Date().toLocaleDateString('es-PE', {
-      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
+    const ayer = Store.resumenDia(diaAtras(1));
+    const horas = Store.ventasPorHora();
+    const horasAyer = Store.ventasPorHora(diaAtras(1));
+
+    /* Comparar el día entero de ayer con medio día de hoy no dice nada: se
+       compara contra lo que ayer llevaba a esta misma hora. */
+    const ahora = new Date().getHours();
+    const ayerAEstaHora = horasAyer.filter(h => h.hora <= ahora).reduce((t, h) => t + h.total, 0);
+
+    const min = Store.minutosCocina();
+    const minAyer = Store.minutosCocina(diaAtras(1));
+    const platos = r.top.reduce((t, p) => t + p.cant, 0);
+
+    const vIngreso = variacion(r.total, ayerAEstaHora);
+    const vTicket = variacion(r.promedio, ayer.promedio);
+
+    $('#kpis').innerHTML =
+      kpi({
+        etq: 'Ingreso del día', cifra: soles(r.total),
+        delta: vIngreso.txt, sube: vIngreso.sube,
+        nota: ayerAEstaHora ? `Ayer ${soles(ayerAEstaHora)} a esta hora` : 'Ayer no hubo ventas',
+        serie: horas.map(h => h.total)
+      }) +
+      kpi({
+        etq: 'Cuentas cerradas', cifra: String(r.ventas),
+        delta: r.ventas - ayer.ventas >= 0 ? `+${r.ventas - ayer.ventas}` : String(r.ventas - ayer.ventas),
+        sube: r.ventas >= ayer.ventas,
+        nota: `${platos} plato${platos === 1 ? '' : 's'} servido${platos === 1 ? '' : 's'}`,
+        serie: horas.map(h => h.ventas)
+      }) +
+      kpi({
+        etq: 'Ticket promedio', cifra: soles(r.promedio),
+        delta: vTicket.txt, sube: vTicket.sube,
+        nota: ayer.promedio ? `Ayer ${soles(ayer.promedio)}` : 'Sin ayer con qué comparar',
+        serie: horas.map(h => (h.ventas ? h.total / h.ventas : 0))
+      }) +
+      (min === null
+        ? kpi({
+            etq: 'Minutos en cocina', cifra: '—', delta: 'sin datos', sube: null,
+            nota: 'Nadie marcó pedidos como listos en la pantalla de cocina',
+            serie: [0, 0, 0, 0, 0, 0]
+          })
+        : kpi({
+            etq: 'Minutos en cocina', cifra: min.toFixed(1),
+            delta: minAyer ? `${min - minAyer >= 0 ? '+' : '−'}${Math.abs(min - minAyer).toFixed(1)}` : 'sin comparar',
+            sube: minAyer ? min <= minAyer : null,
+            nota: min > 12 ? 'Sobre el límite de 12 min' : 'Dentro del límite de 12 min',
+            serie: horas.map(h => h.ventas)
+          }));
+
+    $('#curva-titulo').textContent = 'Ingreso por hora';
+    $('#curva-sub').textContent = `Total ${soles(r.total)} · comparado con ayer`;
+    $('#leyenda-a').textContent = 'Hoy';
+    $('#leyenda-b').textContent = 'Ayer';
+    pintarCurva(
+      horas.map(h => h.total),
+      horasAyer.map(h => h.total),
+      horas.map(h => `${h.hora}h`)
+    );
+  }
+
+  // ══ SEMANA ════════════════════════════════════════════════════════════════
+  function pintarSemana() {
+    const dias = Store.resumenDias(7);
+    const previos = Store.resumenDias(14).slice(0, 7);
+
+    const total = dias.reduce((t, d) => t + d.total, 0);
+    const totalPrev = previos.reduce((t, d) => t + d.total, 0);
+    const cuentas = dias.reduce((t, d) => t + d.ventas, 0);
+    const cuentasPrev = previos.reduce((t, d) => t + d.ventas, 0);
+    const abiertos = dias.filter(d => d.ventas > 0);
+    const mejor = dias.slice().sort((a, b) => b.total - a.total)[0];
+    const ticket = cuentas ? total / cuentas : 0;
+    const ticketPrev = cuentasPrev ? totalPrev / cuentasPrev : 0;
+
+    const vTotal = variacion(total, totalPrev);
+    const vTicket = variacion(ticket, ticketPrev);
+
+    $('#kpis').innerHTML =
+      kpi({
+        etq: 'Ingreso semanal', cifra: soles(total),
+        delta: vTotal.txt, sube: vTotal.sube,
+        nota: totalPrev ? `Semana previa ${soles(totalPrev)}` : 'Sin semana previa con qué comparar',
+        serie: dias.map(d => d.total)
+      }) +
+      kpi({
+        etq: 'Cuentas cerradas', cifra: String(cuentas),
+        delta: cuentas - cuentasPrev >= 0 ? `+${cuentas - cuentasPrev}` : String(cuentas - cuentasPrev),
+        sube: cuentas >= cuentasPrev,
+        nota: abiertos.length
+          ? `${Math.round(cuentas / abiertos.length)} por día en promedio`
+          : 'Ninguna cuenta esta semana',
+        serie: dias.map(d => d.ventas)
+      }) +
+      kpi({
+        etq: 'Ticket promedio', cifra: soles(ticket),
+        delta: vTicket.txt, sube: vTicket.sube,
+        nota: mejor && mejor.total ? `El mejor día: ${NOMBRE_DIA(mejor.dia)}` : 'Sin ventas todavía',
+        serie: dias.map(d => (d.ventas ? d.total / d.ventas : 0))
+      }) +
+      kpi({
+        etq: 'Mejor día', cifra: mejor && mejor.total ? NOMBRE_DIA(mejor.dia) : '—',
+        delta: mejor && mejor.total ? soles(mejor.total) : 'sin datos',
+        sube: mejor && mejor.total ? true : null,
+        nota: total && mejor
+          ? `${Math.round((mejor.total / total) * 100)}% del ingreso de la semana`
+          : 'Sin ventas todavía',
+        serie: dias.map(d => d.total)
+      });
+
+    $('#curva-titulo').textContent = 'Ingreso por día';
+    $('#curva-sub').textContent = `Total ${soles(total)} · comparado con la semana previa`;
+    $('#leyenda-a').textContent = 'Esta semana';
+    $('#leyenda-b').textContent = 'Semana previa';
+    pintarCurva(
+      dias.map(d => d.total),
+      previos.map(d => d.total),
+      dias.map(d => NOMBRE_DIA(d.dia))
+    );
+  }
+
+  // ══ AVISOS ════════════════════════════════════════════════════════════════
+  /* Todos salen de datos de verdad. Si no hay nada que avisar, se dice: un
+     panel que siempre tiene alertas deja de mirarse. */
+  function avisos() {
+    const lista = [];
+    const semana = vista === 'semana';
+
+    const min = Store.minutosCocina();
+    if (min !== null && min > 12) {
+      lista.push({
+        titulo: 'Cocina lenta', valor: `${min.toFixed(1)} min`, malo: true,
+        cuerpo: 'El promedio de hoy pasó el límite de 12 minutos entre que entra el pedido y se marca listo.'
+      });
+    }
+
+    Store.mesasOlvidadas(90).slice(0, 2).forEach(c => {
+      lista.push({
+        titulo: `${c.nombre} abierta`, valor: UI.transcurrido(c.desdeUltimo).replace(':', 'h '), malo: true,
+        cuerpo: `Sin pedir nada nuevo desde ${UI.hora(c.desdeUltimo)}. Confirma si ya se van o si falta atenderla.`
+      });
     });
 
-    const platos = r.top.reduce((t, p) => t + p.cant, 0);
-    $('#tarjetas-dia').innerHTML =
-      tarjeta('Entró hoy', UI.soles(r.total), `${r.ventas} cuenta${r.ventas === 1 ? '' : 's'} cobrada${r.ventas === 1 ? '' : 's'}`) +
-      tarjeta('Ticket promedio', UI.soles(r.promedio), 'por cuenta') +
-      tarjeta('Platos servidos', platos, `${r.top.length} distintos`) +
-      tarjeta('Descuentos', UI.soles(r.descuentos), r.descuentos ? 'revisar' : 'ninguno');
+    const dormidos = Store.usuarios().filter(u =>
+      !u.activo || (u.ultimoAcceso && Date.now() - u.ultimoAcceso > 9 * 86400000));
+    dormidos.slice(0, 1).forEach(u => {
+      lista.push({
+        titulo: u.nombre, valor: u.activo ? cuando(u.ultimoAcceso) : 'bloqueada', malo: false,
+        cuerpo: u.activo
+          ? 'Su cuenta lleva más de nueve días sin usarse. Si ya no trabaja acá, conviene darle de baja.'
+          : 'Cuenta bloqueada. Puedes reactivarla o borrarla en Mozos y accesos.'
+      });
+    });
 
-    const metodos = Object.entries(r.metodos).sort((a, b) => b[1] - a[1]);
-    const maxM = Math.max(1, ...metodos.map(m => m[1]));
-    $('#metodos-dia').innerHTML = metodos.length
-      ? `<div class="barras">${metodos.map(([m, t]) =>
-          barra(m, UI.soles(t), t / maxM)).join('')}</div>`
-      : '<p class="vacio-msg">Todavía no se cobró nada hoy.</p>';
+    if (semana) {
+      const dias = Store.resumenDias(7);
+      const total = dias.reduce((t, d) => t + d.total, 0);
+      const fuertes = dias.slice().sort((a, b) => b.total - a.total).slice(0, 2);
+      const parte = fuertes.reduce((t, d) => t + d.total, 0);
+      if (total && parte / total > 0.35) {
+        lista.push({
+          titulo: `${NOMBRE_DIA(fuertes[0].dia)} y ${NOMBRE_DIA(fuertes[1].dia)}`,
+          valor: `${Math.round((parte / total) * 100)}% del total`, malo: false,
+          cuerpo: 'Dos días concentran buena parte de la semana. Vale reforzar mozos en esos turnos.'
+        });
+      }
+    }
 
-    const mozos = Store.porMozo();
-    const maxZ = Math.max(1, ...mozos.map(m => m.total));
-    $('#mozos-dia').innerHTML = mozos.length
-      ? `<div class="barras">${mozos.map(m =>
-          barra(m.mozo, UI.soles(m.total), m.total / maxZ, ` · ${m.cuentas}`)).join('')}</div>`
-      : '<p class="vacio-msg">Sin cuentas cobradas todavía.</p>';
-
-    const ventas = Store.ventasDia().slice().sort((a, b) => b.cerrado - a.cerrado);
-    $('#ventas-dia').innerHTML = ventas.length ? `
-      <table class="tabla">
-        <thead><tr><th>N°</th><th>Mesa</th><th>Hora</th><th>Mozo</th><th>Pago</th><th class="n">Total</th></tr></thead>
-        <tbody>${ventas.map(v => `
-          <tr>
-            <td>${String(v.num).padStart(4, '0')}</td>
-            <td>${UI.esc(v.nombreMesa || v.mesa)}</td>
-            <td>${UI.hora(v.cerrado)}</td>
-            <td>${UI.esc((v.mozos || []).join(', ') || '—')}</td>
-            <td>${UI.esc(v.metodo)}</td>
-            <td class="n dinero">${UI.soles(v.total)}</td>
-          </tr>`).join('')}
-        </tbody>
-      </table>` : '<p class="vacio-msg">Ninguna cuenta cobrada hoy.</p>';
-  }
-
-  // ══ LA SEMANA ═════════════════════════════════════════════════════════════
-  function pintarSemana() {
-    const dias = Store.resumenDias(diasSemana);
-    const total = dias.reduce((t, d) => t + d.total, 0);
-    const cuentas = dias.reduce((t, d) => t + d.ventas, 0);
-    const conVentas = dias.filter(d => d.ventas > 0);
-    const mejor = dias.slice().sort((a, b) => b.total - a.total)[0];
-
-    $('#tarjetas-semana').innerHTML =
-      tarjeta(`Entró en ${diasSemana} días`, UI.soles(total), `${cuentas} cuenta${cuentas === 1 ? '' : 's'}`) +
-      tarjeta('Por día abierto', UI.soles(conVentas.length ? total / conVentas.length : 0),
-              `${conVentas.length} día${conVentas.length === 1 ? '' : 's'} con ventas`) +
-      tarjeta('Ticket promedio', UI.soles(cuentas ? total / cuentas : 0), 'por cuenta') +
-      tarjeta('El mejor día', mejor && mejor.total ? UI.soles(mejor.total) : '—',
-              mejor && mejor.total ? nombreDia(mejor.dia) : 'sin ventas todavía');
-
-    const max = Math.max(1, ...dias.map(d => d.total));
-    /* Columnas y no filas: así se ve la forma de la semana de un vistazo —
-       qué días levanta el chifa y cuáles se caen. */
-    $('#grafico-dias').innerHTML = dias.map(d => `
-      <div class="col-dia ${d.dia === Store.hoy() ? 'hoy' : ''}" title="${nombreDia(d.dia)}: ${UI.soles(d.total)}">
-        <span class="cd-val">${d.total ? UI.soles(d.total).replace(/^S\/\s*/, '') : ''}</span>
-        <span class="cd-barra" style="height:${(d.total / max) * 100}%"></span>
-        <span class="cd-etq">${nombreDia(d.dia)}</span>
-      </div>`).join('');
-  }
-
-  // ══ PLATOS ════════════════════════════════════════════════════════════════
-  function pintarPlatos() {
-    const r = Store.ranking(diasPlatos);
-    const mas = r.mas.slice(0, 12);
-    const max = Math.max(1, ...mas.map(p => p.cant));
-
-    $('#mas-pedidos').innerHTML = mas.length
-      ? mas.map(p => barra(
-          `${String(p.codigo).padStart(2, '0')} · ${p.nombre}`, p.cant, p.cant / max, ' ud')).join('')
-      : '<p class="vacio-msg">Todavía no hay ventas en este tiempo.</p>';
-
-    /* De los que no salen se muestran solo los de comida: que nadie pida un
-       vino en particular no dice gran cosa, que no salga un plato sí.
-
-       Se ordenan por lo que vendieron y, a igualdad, por número de carta.
-       Antes salían los de código más alto por casualidad del desempate, que
-       no le dice nada a nadie: así al menos se leen en el orden de la carta,
-       y los que algo vendieron van primero, que son los que se pueden
-       levantar recomendándolos. */
+    const r = Store.ranking(semana ? 7 : 1);
     const comida = r.todos.filter(p => !p.bar);
-    const flojos = comida.slice()
-      .sort((a, b) => a.cant - b.cant || a.codigo - b.codigo)
-      .slice(0, 12);
     const enCero = comida.filter(p => p.cant === 0).length;
+    if (semana && enCero > comida.length * 0.5) {
+      lista.push({
+        titulo: 'Carta muy larga', valor: `${enCero} platos`, malo: false,
+        cuerpo: `De ${comida.length} platos, ${enCero} no salieron ni una vez esta semana. Sacar los que menos rotan libera compra y cocina.`
+      });
+    }
 
-    $('#menos-pedidos').innerHTML = (flojos.length
-      ? flojos.map(p => barra(
-          `${String(p.codigo).padStart(2, '0')} · ${p.nombre}`, p.cant, p.cant / max, ' ud')).join('')
-      : '<p class="vacio-msg">Nada que mostrar.</p>') +
-      (enCero ? `<p class="bloque-pie">${enCero} de los ${comida.length} platos de la carta
-         no salieron ni una vez en estos ${r.dias} días.</p>` : '');
+    $('#cuenta-avisos').textContent = lista.length
+      ? `${lista.length} activo${lista.length === 1 ? '' : 's'}` : 'todo en orden';
+    $('#avisos').innerHTML = lista.length
+      ? lista.map(a => `
+        <div class="aviso ${a.malo ? 'malo' : ''}">
+          <div class="arriba">
+            <span class="titulo">${UI.esc(a.titulo)}</span>
+            <span class="valor">${UI.esc(a.valor)}</span>
+          </div>
+          <div class="cuerpo">${UI.esc(a.cuerpo)}</div>
+        </div>`).join('')
+      : '<p class="vacio-admin">Nada que revisar por ahora.</p>';
+  }
+
+  // ══ MEZCLA DE CARTA ═══════════════════════════════════════════════════════
+  function pintarMezcla() {
+    const dias = vista === 'semana' ? 7 : 1;
+    const r = Store.ranking(dias);
+    const comida = r.todos.filter(p => !p.bar);
+    const arriba = mezcla === 'top';
+
+    const lista = arriba
+      ? r.mas.slice(0, 6)
+      : comida.slice().sort((a, b) => a.cant - b.cant || a.codigo - b.codigo).slice(0, 6);
+    const escala = Math.max(1, ...(arriba ? lista : comida).map(p => p.cant));
+
+    $('#mezcla-sub').textContent = dias === 1 ? 'Hoy · unidades y venta' : 'Últimos 7 días · unidades y venta';
+    $('#platos').innerHTML = lista.length
+      ? lista.map((p, i) => `
+        <div class="plato-fila ${arriba ? '' : 'flojo'}">
+          <span class="puesto">${String(i + 1).padStart(2, '0')}</span>
+          <div style="min-width:0">
+            <div class="nom" title="${UI.esc(p.nombre)}">${UI.esc(p.nombre)}</div>
+            <div class="riel ${arriba ? '' : 'apagado'}">
+              <i style="width:${Math.max(p.cant ? 6 : 2, Math.round((p.cant / escala) * 100))}%"></i>
+            </div>
+          </div>
+          <span class="uds">${p.cant} u.</span>
+          <span class="soles">${soles(p.importe)}</span>
+        </div>`).join('')
+      : '<p class="vacio-admin">Todavía no hay ventas en este tiempo.</p>';
+
+    const enCero = comida.filter(p => p.cant === 0).length;
+    const masCaro = r.mas.slice(0, 6).slice().sort((a, b) => b.importe - a.importe)[0];
+    $('#mezcla-nota').textContent = arriba
+      ? (masCaro && r.mas[0] && masCaro.codigo !== r.mas[0].codigo
+          ? `${masCaro.nombre} vende menos unidades que ${r.mas[0].nombre} pero deja más soles: conviene ofrecerlo primero.`
+          : 'Con pocos días de datos, mira la semana antes de decidir nada sobre la carta.')
+      : (dias === 1
+          ? 'Con un solo día de datos conviene mirar la semana antes de sacar algo de la carta.'
+          : `${enCero} de los ${comida.length} platos de la carta no salieron ni una vez en estos 7 días.`);
+  }
+
+  // ══ RENDIMIENTO DEL SALÓN ═════════════════════════════════════════════════
+  function pintarMozos() {
+    let gente;
+    if (vista === 'semana') {
+      const suma = {};
+      Store.resumenDias(7).forEach(d => {
+        Store.porMozo(d.dia).forEach(m => {
+          suma[m.mozo] = suma[m.mozo] || { mozo: m.mozo, total: 0, cuentas: 0 };
+          suma[m.mozo].total += m.total;
+          suma[m.mozo].cuentas += m.cuentas;
+        });
+      });
+      gente = Object.values(suma).sort((a, b) => b.total - a.total);
+    } else {
+      gente = Store.porMozo();
+    }
+
+    const max = Math.max(1, ...gente.map(m => m.total));
+    $('#mozos').innerHTML = gente.length
+      ? gente.map(m => `
+        <div class="mozo-fila">
+          <div class="arriba">
+            <span class="ini">${UI.esc(iniciales(m.mozo))}</span>
+            <span class="nom">${UI.esc(m.mozo)}</span>
+            <span class="tot">${soles(m.total)}</span>
+          </div>
+          <div class="riel"><i style="width:${Math.round((m.total / max) * 100)}%"></i></div>
+          <div class="abajo">
+            <span>${m.cuentas} cuenta${m.cuentas === 1 ? '' : 's'}</span>
+            <span>ticket prom. ${soles(m.cuentas ? m.total / m.cuentas : 0)}</span>
+          </div>
+        </div>`).join('')
+      : '<p class="vacio-admin">Ninguna cuenta cobrada todavía.</p>';
   }
 
   // ══ EL EQUIPO ═════════════════════════════════════════════════════════════
-  function pintarGente() {
+  function pintarEquipo() {
     const gente = Store.usuarios();
     const yo = Store.sesion();
-    $('#gente').innerHTML = gente.map(u => `
-      <div class="persona ${u.activo ? '' : 'baja'}">
-        <span class="p-ini">${UI.esc(u.nombre.slice(0, 1).toUpperCase())}</span>
-        <span class="p-datos">
-          <b>${UI.esc(u.nombre)}${yo && yo.id === u.id ? ' <span class="p-tu">tú</span>' : ''}</b>
-          <small>${UI.esc(Store.NOMBRE_ROL[u.rol] || u.rol)}${u.activo ? '' : ' · dado de baja'}</small>
-        </span>
-        <span class="p-acciones">
-          <button class="btn chico fantasma" data-editar="${u.id}">Editar</button>
-          <button class="btn chico fantasma" data-baja="${u.id}">${u.activo ? 'Dar de baja' : 'Reactivar'}</button>
-          <button class="btn chico fantasma peligro" data-borrar="${u.id}">Borrar</button>
-        </span>
-      </div>`).join('') || '<p class="vacio-msg">No hay nadie dado de alta.</p>';
+    const activos = gente.filter(u => u.activo).length;
 
-    const partes = ['mozo', 'cocina', 'caja', 'admin', 'dinero'];
-    const rotulo = { mozo: 'Salón', cocina: 'Cocina', caja: 'Caja', admin: 'Admin', dinero: 'Ve el dinero' };
-    $('#tabla-permisos').innerHTML = `
-      <table class="tabla">
-        <thead><tr><th>Puesto</th>${partes.map(p => `<th class="n">${rotulo[p]}</th>`).join('')}</tr></thead>
-        <tbody>${Object.entries(Store.PERMISOS).map(([rol, p]) => `
-          <tr>
-            <td><b>${UI.esc(Store.NOMBRE_ROL[rol] || rol)}</b></td>
-            ${partes.map(k => `<td class="n">${p[k] ? '<span class="si">sí</span>' : '<span class="no">—</span>'}</td>`).join('')}
-          </tr>`).join('')}
-        </tbody>
-      </table>`;
+    $('#cuenta-activos').textContent = `${activos} habilitado${activos === 1 ? '' : 's'}`;
+    $('#gente').innerHTML = gente.map(u => `
+      <div class="persona-fila ${u.activo ? '' : 'baja'}">
+        <div class="quien">
+          <span class="ini">${UI.esc(iniciales(u.nombre))}</span>
+          <div style="min-width:0">
+            <div class="nom">${UI.esc(u.nombre)}${yo && yo.id === u.id ? ' <span class="p-tu">tú</span>' : ''}</div>
+            <div class="mano">PIN •••• · ${UI.esc(cuando(u.ultimoAcceso))}</div>
+          </div>
+        </div>
+        <div style="min-width:0">
+          <div class="puesto ${u.rol === 'admin' ? 'dueno' : (u.rol === 'caja' ? 'caja' : '')}">
+            ${UI.esc(Store.NOMBRE_ROL[u.rol] || u.rol)}
+          </div>
+          <div class="visto">${u.activo ? 'con acceso' : 'sin acceso'}</div>
+        </div>
+        <div class="acciones">
+          <button type="button" class="pastilla ${u.activo ? '' : 'no'}" data-baja="${u.id}">
+            ${u.activo ? 'Habilitado' : 'Bloqueado'}
+          </button>
+          <button type="button" class="icono" data-editar="${u.id}" title="Editar" aria-label="Editar">✎</button>
+          <button type="button" class="icono" data-borrar="${u.id}" title="Borrar" aria-label="Borrar">✕</button>
+        </div>
+      </div>`).join('') || '<p class="vacio-admin">No hay nadie dado de alta.</p>';
+
+    /* Escrito a mano y no armado con una lista de permisos: lo que el dueño
+       necesita leer es qué NO ve cada uno, y eso una enumeración no lo dice. */
+    const QUE_VE = {
+      admin: 'Todo: el salón, la cocina, la caja, estos reportes y quién entra al sistema.',
+      caja: 'Cobra, imprime y cierra el día. Ve el dinero, pero no estos reportes ni los accesos.',
+      cocina: 'Solo las comandas de cocina. No ve ingresos ni cierres.',
+      mozo: 'Toma pedidos en el salón. No ve la caja ni cuánto factura el chifa.'
+    };
+    $('#permisos').innerHTML = Object.keys(Store.PERMISOS).map(rol => `
+      <div>
+        <span class="tag ${rol === 'admin' ? 'dueno' : ''}">${UI.esc(Store.NOMBRE_ROL[rol])}</span>
+        <p>${UI.esc(QUE_VE[rol] || '')}</p>
+      </div>`).join('');
   }
 
   // ── Alta y edición ───────────────────────────────────────────────────────
-  let editando = null;
+  const pinCajas = () => $$('#cajas-pin input');
+  const pinValor = () => pinCajas().map(i => i.value).join('');
 
-  function abrirUsuario(id) {
-    editando = id || null;
-    const u = id ? Store.usuario(id) : null;
-    $('#usuario-titulo').textContent = u ? `Editar a ${u.nombre}` : 'Dar de alta';
-    $('#u-nombre').value = u ? u.nombre : '';
-    $('#u-rol').value = u ? u.rol : 'mozo';
-    $('#u-pin').value = '';
-    $('#u-pin-etq').textContent = u
-      ? 'PIN nuevo (déjalo vacío para no cambiarlo)'
-      : 'PIN (4 a 8 números)';
-    $('#u-msg').hidden = true;
-    $('#dlg-usuario').hidden = false;
-    $('#u-nombre').focus();
+  function limpiarAlta() {
+    editando = null;
+    rolAlta = 'mozo';
+    $('#alta-nombre').value = '';
+    pinCajas().forEach(i => { i.value = ''; });
+    $('#alta-titulo').textContent = 'Nuevo acceso';
+    $('#alta-pin-etq').textContent = 'PIN de 4 dígitos';
+    $('#alta-enviar').textContent = 'Crear acceso';
+    $('#alta-cancelar').hidden = true;
+    $('#alta-msg').hidden = true;
+    $$('#alta-roles button').forEach(b => b.classList.toggle('on', b.dataset.r === 'mozo'));
   }
 
-  const cerrarUsuario = () => { $('#dlg-usuario').hidden = true; editando = null; };
-
-  function avisoUsuario(t, tipo = 'error') {
-    $('#u-msg').textContent = t;
-    $('#u-msg').className = `nube-msg ${tipo}`;
-    $('#u-msg').hidden = false;
+  function editar(id) {
+    const u = Store.usuario(id);
+    if (!u) return;
+    editando = id;
+    rolAlta = u.rol;
+    $('#alta-nombre').value = u.nombre;
+    pinCajas().forEach(i => { i.value = ''; });
+    $('#alta-titulo').textContent = `Editar a ${u.nombre}`;
+    $('#alta-pin-etq').textContent = 'PIN nuevo (déjalo vacío para no cambiarlo)';
+    $('#alta-enviar').textContent = 'Guardar cambios';
+    $('#alta-cancelar').hidden = false;
+    $('#alta-msg').hidden = true;
+    $$('#alta-roles button').forEach(b => b.classList.toggle('on', b.dataset.r === u.rol));
+    $('#alta-nombre').focus();
   }
 
-  $('#nuevo-usuario').onclick = () => abrirUsuario(null);
-  $('#u-cancelar').onclick = cerrarUsuario;
+  function avisoAlta(t, tipo = 'error') {
+    $('#alta-msg').textContent = t;
+    $('#alta-msg').className = `nube-msg ${tipo}`;
+    $('#alta-msg').hidden = false;
+  }
 
-  $('#form-usuario').addEventListener('submit', e => {
+  /* Las cuatro casillas se comportan como una sola: escribir salta a la
+     siguiente y borrar vuelve a la anterior. */
+  $('#cajas-pin').addEventListener('input', e => {
+    const i = e.target;
+    i.value = i.value.replace(/\D/g, '').slice(0, 1);
+    if (i.value && i.nextElementSibling) i.nextElementSibling.focus();
+  });
+  $('#cajas-pin').addEventListener('keydown', e => {
+    if (e.key === 'Backspace' && !e.target.value && e.target.previousElementSibling) {
+      e.target.previousElementSibling.focus();
+    }
+  });
+
+  $('#alta-roles').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    rolAlta = b.dataset.r;
+    $$('#alta-roles button').forEach(x => x.classList.toggle('on', x === b));
+  });
+
+  $('#alta-cancelar').onclick = limpiarAlta;
+
+  $('#form-alta').addEventListener('submit', e => {
     e.preventDefault();
-    const nombre = $('#u-nombre').value.trim();
-    const rol = $('#u-rol').value;
-    const pin = $('#u-pin').value.trim();
+    const nombre = $('#alta-nombre').value.trim();
+    const pin = pinValor();
 
     if (editando) {
-      const cambios = { nombre, rol };
+      const cambios = { nombre, rol: rolAlta };
       if (pin) cambios.pin = pin;
       const r = Store.editarUsuario(editando, cambios);
-      if (!r.ok) return avisoUsuario(r.motivo);
+      if (!r.ok) return avisoAlta(r.motivo);
       UI.toast('Guardado', 'ok');
     } else {
-      const r = Store.crearUsuario({ nombre, rol, pin });
-      if (!r.ok) return avisoUsuario(r.motivo);
+      const r = Store.crearUsuario({ nombre, rol: rolAlta, pin });
+      if (!r.ok) return avisoAlta(r.motivo);
       UI.toast(`${nombre} ya puede entrar`, 'ok');
     }
-    cerrarUsuario();
-    pintarGente();
+    limpiarAlta();
+    pintarEquipo();
   });
 
   $('#gente').addEventListener('click', e => {
     const ed = e.target.closest('[data-editar]');
-    if (ed) return abrirUsuario(ed.dataset.editar);
+    if (ed) return editar(ed.dataset.editar);
 
     const ba = e.target.closest('[data-baja]');
     if (ba) {
@@ -233,7 +507,7 @@
       const r = Store.editarUsuario(u.id, { activo: !u.activo });
       if (!r.ok) UI.toast(r.motivo, 'error');
       else UI.toast(u.activo ? `${u.nombre} ya no puede entrar` : `${u.nombre} puede entrar otra vez`, 'ok');
-      pintarGente();
+      pintarEquipo();
       return;
     }
 
@@ -243,59 +517,114 @@
       if (!u || !confirm(`¿Borrar a ${u.nombre}? Sus cuentas cobradas se quedan como están.`)) return;
       const r = Store.borrarUsuario(u.id);
       if (!r.ok) UI.toast(r.motivo, 'error');
-      pintarGente();
+      if (editando === u.id) limpiarAlta();
+      pintarEquipo();
     }
   });
 
-  // ── Pestañas ─────────────────────────────────────────────────────────────
-  $('#tabs').addEventListener('click', e => {
-    const b = e.target.closest('button');
-    if (!b) return;
-    hoja = b.dataset.t;
-    $$('#tabs button').forEach(x => x.classList.toggle('on', x === b));
-    ['dia', 'semana', 'platos', 'gente'].forEach(h => {
-      document.getElementById(`hoja-${h}`).hidden = h !== hoja;
-    });
+  // ── Lateral ──────────────────────────────────────────────────────────────
+  function pintarLateral() {
+    const yo = Store.sesion();
+    if (yo) {
+      $('#yo-ini').textContent = iniciales(yo.nombre);
+      $('#yo-nombre').textContent = yo.nombre;
+      $('#yo-rol').textContent = Store.NOMBRE_ROL[yo.rol] || yo.rol;
+    }
+
+    const cuentas = Store.cuentas();
+    const servicio = $('#estado-servicio');
+    servicio.classList.toggle('quieto', cuentas.length === 0);
+    $('#rotulo-servicio').textContent = cuentas.length ? 'SERVICIO ABIERTO' : 'SALÓN LIBRE';
+    $('#servicio-mesas').textContent = cuentas.length
+      ? `${cuentas.length} mesa${cuentas.length === 1 ? '' : 's'} ocupada${cuentas.length === 1 ? '' : 's'}`
+      : 'Ninguna mesa abierta';
+
+    const vieja = cuentas.slice().sort((a, b) => a.desde - b.desde)[0];
+    $('#servicio-nota').textContent = vieja
+      ? `La más antigua: ${vieja.nombre}, ${UI.transcurrido(vieja.desde)}`
+      : 'Nada pendiente de cobrar';
+
+    /* La marca del lateral cuenta lo que hay que mirar: cuentas bloqueadas
+       o dormidas. Sin nada que revisar, no hay marca. */
+    const pendientes = Store.usuarios().filter(u =>
+      !u.activo || (u.ultimoAcceso && Date.now() - u.ultimoAcceso > 9 * 86400000)).length;
+    const marca = $('#marca-equipo');
+    marca.textContent = pendientes;
+    marca.hidden = !pendientes;
+
+    const estado = Store.estadoConexion();
+    const chip = $('#chip-nube');
+    chip.className = `chip-estado ${estado === 'nube' ? '' : (estado === 'sin-conexion' ? 'tibio' : 'frio')}`;
+    $('#chip-nube-txt').textContent = {
+      nube: 'Equipos sincronizados',
+      'sin-conexion': 'Sin internet · se sube al volver',
+      local: 'Este equipo trabaja solo'
+    }[estado];
+  }
+
+  // ── Navegación ───────────────────────────────────────────────────────────
+  function irA(v) {
+    vista = v;
+    $$('#nav .nav-item').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+    $$('#rango button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+    $('#rango').hidden = v === 'equipo';
+    $('#hoja-reporte').hidden = v === 'equipo';
+    $('#hoja-equipo').hidden = v !== 'equipo';
     pintarTodo();
-  });
+  }
 
-  $('#rango-semana').addEventListener('click', e => {
+  $('#nav').addEventListener('click', e => {
+    const b = e.target.closest('.nav-item');
+    if (b) irA(b.dataset.v);
+  });
+  $('#rango').addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (b) irA(b.dataset.v);
+  });
+  $('#mezcla-tabs').addEventListener('click', e => {
     const b = e.target.closest('button');
     if (!b) return;
-    diasSemana = Number(b.dataset.d);
-    $$('#rango-semana button').forEach(x => x.classList.toggle('on', x === b));
-    pintarSemana();
+    mezcla = b.dataset.m;
+    $$('#mezcla-tabs button').forEach(x => x.classList.toggle('on', x === b));
+    pintarMezcla();
   });
 
-  $('#rango-platos').addEventListener('click', e => {
-    const b = e.target.closest('button');
-    if (!b) return;
-    diasPlatos = Number(b.dataset.d);
-    $$('#rango-platos button').forEach(x => x.classList.toggle('on', x === b));
-    pintarPlatos();
-  });
+  $('#salir').onclick = () => {
+    Store.salir();
+    location.href = 'index.html';
+  };
 
   // ── Arranque ─────────────────────────────────────────────────────────────
   function pintarTodo() {
-    const yo = Store.sesion();
-    $('#quien-top').textContent = yo ? `${yo.nombre} · ${Store.NOMBRE_ROL[yo.rol]}` : '';
-    if (hoja === 'dia') pintarDia();
-    else if (hoja === 'semana') pintarSemana();
-    else if (hoja === 'platos') pintarPlatos();
-    else pintarGente();
+    pintarLateral();
+
+    if (vista === 'equipo') {
+      $('#cab-titulo').textContent = 'Mozos y accesos';
+      $('#cab-sub').textContent = 'Cada uno entra con su PIN';
+      pintarEquipo();
+      return;
+    }
+
+    const hoy = vista === 'hoy';
+    $('#cab-titulo').textContent = hoy ? 'Resumen del día' : 'Resumen semanal';
+    $('#cab-sub').textContent = hoy
+      ? `${new Date().toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })} · ${UI.hora(Date.now())}`
+      : 'Los últimos 7 días';
+
+    if (hoy) pintarHoy(); else pintarSemana();
+    avisos();
+    pintarMezcla();
+    pintarMozos();
   }
 
-  function reloj() { $('#reloj').textContent = UI.horaSeg(Date.now()); }
-
+  limpiarAlta();
   pintarTodo();
-  reloj();
   Store.on(() => {
     /* Si el dueño se quitó a sí mismo el puesto desde otro equipo, esta
        pantalla deja de ser suya. */
     if (!Store.puede('admin')) return location.replace('index.html');
     pintarTodo();
   });
-  setInterval(reloj, 1000);
   setInterval(pintarTodo, 20000);
   Store.arrancar().then(pintarTodo);
 })();

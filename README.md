@@ -99,23 +99,36 @@ para los tres oficios del salón y nada más. Al panel se entra por el botón
 **Admin · soy el dueño**, en la puerta donde se elige el local — se marca el
 PIN y lleva derecho ahí.
 
-Cuatro pestañas:
+Sigue el diseño **Panel Admin v2** hecho en Claude Design: lateral fijo con la
+navegación y el estado del servicio, y el cuerpo con las cifras. Es la única
+pantalla con esa forma, y a propósito — no se usa de pie y con prisa como el
+salón, sino sentado y con tiempo.
 
-- **Hoy** — cuánto entró, cuántas cuentas, ticket promedio y descuentos; el
-  reparto por medio de pago y **por mozo**; y la lista de las cuentas cobradas.
-- **La semana** — los últimos 7, 14 o 30 días en un gráfico de columnas, con el
-  día de hoy marcado aparte. Los días sin ventas salen en cero: un lunes vacío
-  también dice algo.
-- **Platos** — los que más salen y **los que no salen**, en 7, 30 o 90 días.
-  Los segundos incluyen platos de la carta que no se pidieron ni una vez, que
-  es lo que sirve para decidir qué sacar o qué recomendar.
-- **El equipo** — dar de alta, editar, cambiar el PIN, dar de baja o borrar.
+**Hoy** y **Semana** comparten la misma hoja:
+
+- **Cuatro cifras grandes** con su variación contra el periodo anterior. El
+  día se compara con *lo que ayer llevaba a esta misma hora*, no con el día
+  entero de ayer: si no, a las 13:00 siempre parecería que el chifa se hunde.
+- **La curva** del ingreso, por hora en el día y por día en la semana, con el
+  periodo anterior detrás en línea de puntos.
+- **Avisos**, todos calculados de datos reales: cocina pasada de tiempo, mesas
+  abiertas sin pedir nada, cuentas dormidas o bloqueadas, días que concentran
+  la semana, carta demasiado larga. Si no hay nada que revisar, lo dice.
+- **Mezcla de carta**: los que más salen y los que no salen, con unidades y
+  soles.
+- **Rendimiento del salón**: cuánto trajo cada mozo y su ticket promedio.
+
+**Mozos y accesos** trae las cuentas del personal —con su último acceso—, el
+alta con PIN de cuatro casillas, y qué ve cada puesto.
 
 Dar de baja a alguien le corta el paso **al instante**, aunque tenga la sesión
 abierta en otra tablet y sin que nadie recargue nada.
 
-Los gráficos son barras de CSS, sin librerías: funcionan sin internet y se leen
-igual en la tablet que en el monitor de la caja.
+> El PIN **no se muestra**: está cifrado y no hay forma de leerlo, ni siquiera
+> desde acá. Si alguien lo olvida, se le pone uno nuevo desde Editar.
+
+Los gráficos son SVG y barras de CSS, sin librerías: funcionan sin internet y
+se leen igual en la tablet que en el monitor de la caja.
 
 ## Cómo abrirlo
 
@@ -136,7 +149,7 @@ Y en el navegador: <http://127.0.0.1:8787>
 > trabajando con una versión que ya no existe — pasa, y cuesta mucho darse
 > cuenta.
 >
-> Los archivos además llevan un número de versión (`assets/store.js?v=13`). Si
+> Los archivos además llevan un número de versión (`assets/store.js?v=14`). Si
 > algún día tocas los archivos a mano, sube ese número en los cuatro `.html`
 > para que los navegadores recojan la versión nueva. Y si algo se ve raro tras
 > una actualización, recarga con **Ctrl+F5**.
@@ -613,6 +626,7 @@ assets/
   cocina.js         tablero, cronómetros, impresión manual/automática
   caja.js           cobro, ventas del día, editor de carta
   admin.js          reportes del dueño y alta de gente
+  admin.css         el panel del dueño (no usa app.css: es otra pantalla)
   app.css           diseño de las tres pantallas + formato de ticket 80 mm
 servir.py           servidor local, sin caché (--red para las tablets)
 emulador/           las dos ticketeras de mentira, para probar

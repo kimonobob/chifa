@@ -17,7 +17,36 @@ para probar sin gastar papel y sin tener las máquinas delante.
 
 ---
 
-## Arrancarlo
+## Prueba rápida, sin terminal
+
+Doble clic en **`arrancar.bat`** (está en la carpeta del sistema, junto a
+`index.html`). Abre dos ventanas negras —el sistema y las ticketeras— y
+tres pestañas. **Las ventanas negras se quedan abiertas**: son los
+programas corriendo; cerrarlas apaga todo.
+
+1. **Portada** → entra a *Jr. Lima* con el código `1111`.
+2. **Pestaña "mozo"** → toca una mesa, marca un plato (código `02`,
+   cantidad 2) y dale a **Enviar**.
+3. **Pestaña del visor** → en el rollo de la **izquierda (cocina)** sale la
+   comanda, con el sello de qué pantalla y qué equipo la mandó.
+4. **Boleta**: abre `caja.html`, cobra esa mesa → el papel sale en el rollo
+   de la **derecha (caja)**.
+5. **Simula la falla**: en el visor, clic en el chip *con papel* de cocina
+   (se pone rojo, `SIN PAPEL`) y manda otro pedido. En la pantalla del mozo
+   aparece el aviso *"La ticketera de cocina no imprimió: sin papel"*. Otro
+   clic y vuelve a haber papel.
+
+El `?emulador=1` de la pestaña del mozo queda guardado **para todo ese
+navegador**: caja y cocina ya salen enganchadas, no hay que repetirlo.
+
+Cuando quieras probar desde la tablet, mira la IP que muestra la ventana
+"Chifa - sistema" y abre en la tablet, con la misma wifi del local:
+
+```
+http://LA-IP:8787/mozo.html?emulador=LA-IP
+```
+
+## Arrancarlo a mano
 
 En el equipo que va a tener las impresoras (la PC de la cocina, o la de
 caja mientras pruebas):

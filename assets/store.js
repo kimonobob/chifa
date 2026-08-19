@@ -529,12 +529,22 @@ const Store = (() => {
     } catch (e) { return null; }
   }
 
+  /* Deja anotado cuándo entró por última vez. El dueño lo ve en su panel, y
+     es lo que permite darse cuenta de una cuenta que ya nadie usa. */
+  function anotarAcceso(id) {
+    mutar(s => {
+      const u = (s.usuarios || []).find(x => x.id === id);
+      if (u) u.ultimoAcceso = Date.now();
+    });
+  }
+
   function ingresar(id, pin) {
     const u = usuario(id);
     if (!u) return { ok: false, motivo: 'No existe esa persona' };
     if (!u.activo) return { ok: false, motivo: `${u.nombre} está dado de baja` };
     if (cifrarPin(pin, u.sal) !== u.pin) return { ok: false, motivo: 'Ese PIN no es' };
     try { localStorage.setItem(CLAVE_SESION(), JSON.stringify({ id: u.id })); } catch (e) {}
+    anotarAcceso(u.id);
     avisar('sesion');
     return { ok: true, sesion: sesion() };
   }
@@ -547,6 +557,7 @@ const Store = (() => {
     const u = duenos.find(x => cifrarPin(pin, x.sal) === x.pin);
     if (!u) return { ok: false, motivo: 'Ese PIN no es' };
     try { localStorage.setItem(CLAVE_SESION(), JSON.stringify({ id: u.id })); } catch (e) {}
+    anotarAcceso(u.id);
     avisar('sesion');
     return { ok: true, sesion: sesion() };
   }
@@ -620,6 +631,46 @@ const Store = (() => {
       mas: todos.filter(p => p.cant > 0),
       menos: todos.slice().reverse()
     };
+  }
+
+  /* Cuánto entró en cada hora del servicio. Es lo que dibuja la curva del
+     panel: se ve de un vistazo a qué hora llena el chifa. Solo devuelve las
+     horas en las que hubo movimiento algún día, para no arrastrar una
+     madrugada vacía. */
+  function ventasPorHora(dia, desde = 11, hasta = 23) {
+    const horas = [];
+    for (let h = desde; h <= hasta; h++) horas.push({ hora: h, total: 0, ventas: 0 });
+    ventasDia(dia).forEach(v => {
+      const h = new Date(v.cerrado).getHours();
+      const casilla = horas.find(x => x.hora === h);
+      if (casilla) { casilla.total += v.total; casilla.ventas += 1; }
+    });
+    return horas;
+  }
+
+  /* Cuánto tarda la cocina de verdad: del momento en que entra el pedido al
+     momento en que se marca listo. Solo cuenta los que llegaron a marcarse;
+     si nadie usa la pantalla de cocina, no hay dato y se dice así. */
+  function minutosCocina(dia) {
+    const d = dia || hoy();
+    const tiempos = leer().pedidos
+      .filter(p => p.listoEn && diaDe(p.creado) === d)
+      .map(p => (p.listoEn - p.creado) / 60000)
+      .filter(m => m >= 0 && m < 240);          // fuera lo que quedó abierto de un día para otro
+    if (!tiempos.length) return null;
+    return tiempos.reduce((t, m) => t + m, 0) / tiempos.length;
+  }
+
+  /* Las mesas que llevan mucho abiertas sin pedir nada nuevo. El dueño mira
+     esto para saber si ya se fueron sin avisar o si falta atenderlas. */
+  function mesasOlvidadas(minutos = 90) {
+    return cuentas()
+      .map(c => {
+        const ultimo = Math.max(...c.pedidos.map(p => p.creado), c.desde);
+        return { ...c, quieta: (Date.now() - ultimo) / 60000, desdeUltimo: ultimo };
+      })
+      .filter(c => c.quieta >= minutos)
+      .sort((a, b) => b.quieta - a.quieta);
   }
 
   /* Cuánto trajo cada mozo. Sale de los pedidos que entraron en cada cuenta,
@@ -1170,7 +1221,7 @@ const Store = (() => {
     usuarios, usuario, hayUsuarios, hayAdmin,
     crearUsuario, editarUsuario, borrarUsuario,
     sesion, ingresar, ingresarAdmin, salir, puede, quienSoy,
-    resumenDias, ranking, porMozo
+    resumenDias, ranking, porMozo, ventasPorHora, minutosCocina, mesasOlvidadas, diaDe
   };
 })();
 
